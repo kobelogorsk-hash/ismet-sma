@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Geometry Motion</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
@@ -10,362 +10,523 @@
   <style>
     body {
       margin: 0;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       background: #020617;
       font-family: Inter, sans-serif;
+      color: white;
     }
 
     canvas {
       display: block;
     }
+
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 20px;
+    }
   </style>
 </head>
 <body>
-  <div id="menu" class="fixed inset-0 overflow-y-auto bg-slate-950 text-white">
-    <div class="max-w-7xl mx-auto px-8 py-10">
-      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-10 mb-14">
-        <div>
-          <div class="uppercase tracking-[0.5em] text-slate-500 text-sm mb-4">
-            Arcade Platformer
-          </div>
 
-          <h1 class="text-7xl md:text-8xl font-black leading-none mb-6">
-            GEOMETRY<br />MOTION
-          </h1>
+<div id="menu" class="min-h-screen bg-slate-950 px-8 py-10">
 
-          <p class="text-slate-400 text-xl max-w-3xl leading-relaxed">
-            Хардкорная браузерная игра в стиле Geometry Dash.
-            Длинные уровни, темный минималистичный дизайн и адекватная физика.
-          </p>
+  <div class="max-w-7xl mx-auto">
+
+    <div class="flex flex-col xl:flex-row justify-between gap-10 mb-16">
+
+      <div>
+        <div class="uppercase tracking-[0.5em] text-slate-500 text-sm mb-4">
+          ARCADE PLATFORMER
         </div>
 
-        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-8 min-w-[300px] shadow-2xl">
-          <div class="text-slate-500 uppercase tracking-widest text-sm mb-4">
-            Controls
+        <h1 class="text-7xl md:text-8xl font-black leading-none mb-8">
+          GEOMETRY<br/>
+          MOTION
+        </h1>
+
+        <p class="text-slate-400 text-2xl max-w-3xl leading-relaxed">
+          100 уровней хардкора.
+          Полноэкранный platformer в стиле Geometry Dash
+          с нормальной физикой, прогрессом и темным UI.
+        </p>
+
+        <div class="flex flex-wrap gap-5 mt-10">
+
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl px-6 py-5">
+            <div class="text-slate-500 text-sm">Уровней</div>
+            <div class="text-5xl font-black">100</div>
           </div>
 
-          <div class="text-4xl font-black mb-3">SPACE</div>
-          <div class="text-slate-400 mb-6">или клик мышью</div>
-
-          <div class="border-t border-slate-800 pt-4 text-slate-500">
-            Geometry Motion v1.0
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl px-6 py-5">
+            <div class="text-slate-500 text-sm">Сложность</div>
+            <div class="text-5xl font-black">💀</div>
           </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl px-6 py-5">
+            <div class="text-slate-500 text-sm">Fullscreen</div>
+            <div class="text-5xl font-black">⚡</div>
+          </div>
+
         </div>
       </div>
 
-      <div id="levels" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 pb-20"></div>
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-8 min-w-[320px] h-fit">
+
+        <div class="uppercase tracking-[0.4em] text-slate-500 text-sm mb-5">
+          Controls
+        </div>
+
+        <div class="text-5xl font-black mb-4">
+          SPACE
+        </div>
+
+        <div class="text-slate-400 text-xl mb-6">
+          или клик мышью
+        </div>
+
+        <div class="border-t border-slate-800 pt-5 text-slate-500">
+          Geometry Motion v2.0
+        </div>
+
+      </div>
+
     </div>
+
+    <div
+      id="levels"
+      class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 pb-32"
+    ></div>
+
   </div>
 
-  <canvas id="game"></canvas>
+</div>
 
-  <audio id="jumpSound" preload="auto">
-    <source src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3" type="audio/mpeg">
-  </audio>
+<canvas id="game" class="hidden"></canvas>
 
-  <audio id="deathSound" preload="auto">
-    <source src="https://assets.mixkit.co/active_storage/sfx/2220/2220-preview.mp3" type="audio/mpeg">
-  </audio>
+<script>
 
-  <audio id="winSound" preload="auto">
-    <source src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3" type="audio/mpeg">
-  </audio>
+const LEVELS = Array.from({ length: 100 }, (_, i) => {
 
-  <script>
-    const LEVELS = [
-      {
-        id: 1,
-        name: 'Grass Path',
-        speed: 5,
-        difficulty: 'Easy',
-        color: '#0f172a',
-        length: 4500,
-        obstacles: Array.from({ length: 10 }, (_, i) => ({
-          x: 700 + i * 400,
-          h: 40 + (i % 3) * 20,
-          w: 45,
-        })),
-      },
-      {
-        id: 2,
-        name: 'Dark Tunnel',
-        speed: 6.5,
-        difficulty: 'Normal',
-        color: '#111827',
-        length: 6000,
-        obstacles: Array.from({ length: 16 }, (_, i) => ({
-          x: 600 + i * 320,
-          h: 50 + (i % 5) * 25,
-          w: 50,
-        })),
-      },
-      {
-        id: 3,
-        name: 'Core Reactor',
-        speed: 8,
-        difficulty: 'Hard',
-        color: '#1e293b',
-        length: 8200,
-        obstacles: Array.from({ length: 26 }, (_, i) => ({
-          x: 700 + i * 260,
-          h: 60 + (i % 6) * 30,
-          w: 50 + (i % 2) * 10,
-        })),
-      },
-      {
-        id: 4,
-        name: 'Void Zone',
-        speed: 9.2,
-        difficulty: 'Insane',
-        color: '#020617',
-        length: 10000,
-        obstacles: Array.from({ length: 38 }, (_, i) => ({
-          x: 700 + i * 230,
-          h: 70 + (i % 7) * 25,
-          w: 50,
-        })),
-      },
-    ]
+  const level = i + 1
 
-    const menu = document.getElementById('menu')
-    const levelsContainer = document.getElementById('levels')
-    const canvas = document.getElementById('game')
-    const ctx = canvas.getContext('2d')
+  return {
+    id: level,
 
-    const jumpSound = document.getElementById('jumpSound')
-    const deathSound = document.getElementById('deathSound')
-    const winSound = document.getElementById('winSound')
+    name: `Level ${level}`,
 
-    LEVELS.forEach(level => {
-      const card = document.createElement('button')
+    speed: 4 + level * 0.08,
 
-      card.className = 'bg-slate-900 border border-slate-800 rounded-[32px] p-8 text-left hover:-translate-y-2 hover:border-slate-700 transition-all duration-300 shadow-2xl'
+    difficulty:
+      level < 20
+        ? 'Easy'
+        : level < 40
+        ? 'Normal'
+        : level < 60
+        ? 'Hard'
+        : level < 80
+        ? 'Insane'
+        : 'Demon',
 
-      card.innerHTML = `
-        <div class="h-44 rounded-3xl bg-slate-800 mb-8 flex items-end p-4 overflow-hidden">
-          <div class="w-full h-3 rounded-full bg-slate-700 relative overflow-hidden">
-            <div class="absolute left-10 -top-5 w-8 h-8 bg-white rotate-12 rounded-sm"></div>
-          </div>
-        </div>
+    color: [
+      '#020617',
+      '#0f172a',
+      '#111827',
+      '#1e293b',
+      '#172554',
+    ][level % 5],
 
-        <div class="flex items-center justify-between mb-4">
-          <div class="text-4xl font-black">${level.name}</div>
-          <div class="text-slate-500">0${level.id}</div>
-        </div>
+    length: 4000 + level * 180,
 
-        <div class="space-y-2 text-slate-400 text-lg">
-          <div>Difficulty: ${level.difficulty}</div>
-          <div>Speed: ${level.speed}</div>
-          <div>Length: ${level.length}m</div>
-          <div>Obstacles: ${level.obstacles.length}</div>
-        </div>
-      `
+    obstacles: Array.from(
+      { length: 12 + Math.floor(level * 1.8) },
+      (_, j) => ({
+        x: 700 + j * Math.max(140, 420 - level * 2),
+        h: 40 + ((j + level) % 8) * 18,
+        w: 40 + ((j + level) % 3) * 10,
+      })
+    ),
+  }
+})
 
-      card.onclick = () => startLevel(level)
-      levelsContainer.appendChild(card)
+const menu = document.getElementById('menu')
+const levelsContainer = document.getElementById('levels')
+const canvas = document.getElementById('game')
+const ctx = canvas.getContext('2d')
+
+const jumpSound = new Audio(
+  'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'
+)
+
+const deathSound = new Audio(
+  'https://assets.mixkit.co/active_storage/sfx/2220/2220-preview.mp3'
+)
+
+const winSound = new Audio(
+  'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3'
+)
+
+LEVELS.forEach(level => {
+
+  const card = document.createElement('button')
+
+  card.className =
+    'bg-slate-900 border border-slate-800 rounded-[32px] p-8 text-left hover:-translate-y-2 hover:border-slate-600 transition-all duration-300 shadow-2xl'
+
+  card.innerHTML = `
+
+    <div class="h-44 rounded-3xl bg-slate-800 mb-8 flex items-end p-4 overflow-hidden">
+
+      <div class="w-full h-3 rounded-full bg-slate-700 relative overflow-hidden">
+
+        <div
+          class="absolute left-10 -top-5 w-8 h-8 bg-white rotate-12 rounded-sm"
+        ></div>
+
+      </div>
+
+    </div>
+
+    <div class="flex items-center justify-between mb-4">
+
+      <div class="text-4xl font-black">
+        ${level.name}
+      </div>
+
+      <div class="text-slate-500">
+        #${level.id}
+      </div>
+
+    </div>
+
+    <div class="space-y-2 text-slate-400 text-lg">
+
+      <div>Difficulty: ${level.difficulty}</div>
+
+      <div>Speed: ${level.speed.toFixed(1)}</div>
+
+      <div>Length: ${level.length}m</div>
+
+      <div>Obstacles: ${level.obstacles.length}</div>
+
+    </div>
+
+  `
+
+  card.onclick = () => startLevel(level)
+
+  levelsContainer.appendChild(card)
+})
+
+function resize() {
+  canvas.width = innerWidth
+  canvas.height = innerHeight
+}
+
+resize()
+
+addEventListener('resize', resize)
+
+function startLevel(level) {
+
+  menu.style.display = 'none'
+
+  canvas.classList.remove('hidden')
+
+  const gravity = 0.72
+  const jumpForce = -15
+
+  const ground = canvas.height - 180
+
+  let worldX = 0
+  let progress = 0
+  let running = true
+
+  let particles = []
+
+  const player = {
+    x: 180,
+    y: ground,
+    size: 46,
+    velY: 0,
+    rotation: 0,
+  }
+
+  function jump() {
+
+    if (player.y >= ground - 4) {
+
+      player.velY = jumpForce
+
+      jumpSound.currentTime = 0
+      jumpSound.play()
+    }
+  }
+
+  const keyHandler = e => {
+
+    if (
+      e.code === 'Space' ||
+      e.code === 'ArrowUp'
+    ) {
+      jump()
+    }
+  }
+
+  const clickHandler = () => jump()
+
+  addEventListener('keydown', keyHandler)
+  addEventListener('mousedown', clickHandler)
+
+  function explode(x, y) {
+
+    for (let i = 0; i < 40; i++) {
+
+      particles.push({
+        x,
+        y,
+        vx: (Math.random() - 0.5) * 12,
+        vy: (Math.random() - 0.5) * 12,
+        size: Math.random() * 6 + 2,
+        life: 1,
+      })
+    }
+  }
+
+  function gameOver() {
+
+    running = false
+
+    deathSound.currentTime = 0
+    deathSound.play()
+
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'
+    ctx.fillRect(0,0,canvas.width,canvas.height)
+
+    ctx.fillStyle = '#fff'
+    ctx.font = 'bold 72px Arial'
+
+    ctx.fillText(
+      'GAME OVER',
+      canvas.width / 2 - 240,
+      canvas.height / 2
+    )
+
+    setTimeout(() => {
+      location.reload()
+    }, 2200)
+  }
+
+  function loop() {
+
+    if (!running) return
+
+    requestAnimationFrame(loop)
+
+    ctx.fillStyle = level.color
+    ctx.fillRect(0,0,canvas.width,canvas.height)
+
+    ctx.fillStyle = '#111827'
+    ctx.fillRect(0, ground + 46, canvas.width, 300)
+
+    for (let i = 0; i < canvas.width; i += 60) {
+
+      ctx.fillStyle =
+        i % 120 === 0
+          ? '#1e293b'
+          : '#0f172a'
+
+      ctx.fillRect(
+        i,
+        ground + 46,
+        52,
+        52
+      )
+    }
+
+    worldX += level.speed
+
+    progress = Math.min(
+      100,
+      Math.floor(
+        (worldX / level.length) * 100
+      )
+    )
+
+    player.velY += gravity
+    player.y += player.velY
+
+    if (player.y > ground) {
+      player.y = ground
+      player.velY = 0
+    }
+
+    level.obstacles.forEach(obs => {
+
+      const x = obs.x - worldX
+      const y = ground + 46 - obs.h
+
+      ctx.beginPath()
+
+      ctx.moveTo(x, ground + 46)
+      ctx.lineTo(x + obs.w / 2, y)
+      ctx.lineTo(x + obs.w, ground + 46)
+
+      ctx.closePath()
+
+      ctx.fillStyle = '#e2e8f0'
+      ctx.fill()
+
+      ctx.strokeStyle = '#94a3b8'
+      ctx.lineWidth = 3
+      ctx.stroke()
+
+      if (
+        player.x + player.size - 10 > x &&
+        player.x + 10 < x + obs.w &&
+        player.y + player.size - 10 > y
+      ) {
+
+        explode(
+          player.x + player.size / 2,
+          player.y + player.size / 2
+        )
+
+        gameOver()
+      }
     })
 
-    function resize() {
-      canvas.width = innerWidth
-      canvas.height = innerHeight
+    player.rotation += 0.12
+
+    ctx.save()
+
+    ctx.translate(
+      player.x + player.size / 2,
+      player.y + player.size / 2
+    )
+
+    ctx.rotate(player.rotation)
+
+    ctx.shadowBlur = 20
+    ctx.shadowColor = '#ffffff'
+
+    ctx.fillStyle = '#ffffff'
+
+    ctx.fillRect(
+      -player.size / 2,
+      -player.size / 2,
+      player.size,
+      player.size
+    )
+
+    ctx.shadowBlur = 0
+
+    ctx.fillStyle = '#0f172a'
+
+    ctx.fillRect(
+      -player.size / 2 + 6,
+      -player.size / 2 + 6,
+      player.size - 12,
+      player.size - 12
+    )
+
+    ctx.restore()
+
+    particles.forEach((p, index) => {
+
+      p.x += p.vx
+      p.y += p.vy
+      p.life -= 0.02
+
+      ctx.fillStyle =
+        `rgba(255,255,255,${p.life})`
+
+      ctx.fillRect(
+        p.x,
+        p.y,
+        p.size,
+        p.size
+      )
+
+      if (p.life <= 0) {
+        particles.splice(index, 1)
+      }
+    })
+
+    ctx.fillStyle = '#fff'
+
+    ctx.font = 'bold 28px Arial'
+
+    ctx.fillText(
+      level.name,
+      40,
+      50
+    )
+
+    ctx.font = '22px Arial'
+
+    ctx.fillText(
+      progress + '%',
+      40,
+      90
+    )
+
+    ctx.fillStyle = '#1e293b'
+
+    ctx.fillRect(
+      canvas.width / 2 - 250,
+      30,
+      500,
+      18
+    )
+
+    ctx.fillStyle = '#ffffff'
+
+    ctx.fillRect(
+      canvas.width / 2 - 250,
+      30,
+      progress * 5,
+      18
+    )
+
+    if (progress >= 100) {
+
+      running = false
+
+      winSound.currentTime = 0
+      winSound.play()
+
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'
+      ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      )
+
+      ctx.fillStyle = '#fff'
+      ctx.font = 'bold 72px Arial'
+
+      ctx.fillText(
+        'LEVEL COMPLETE',
+        canvas.width / 2 - 340,
+        canvas.height / 2
+      )
+
+      setTimeout(() => {
+        location.reload()
+      }, 3000)
     }
+  }
 
-    resize()
-    addEventListener('resize', resize)
+  loop()
+}
 
-    function startLevel(level) {
-      cancelAnimationFrame(window.currentGameLoop)
-      canvas.style.display = 'block'
-      menu.style.display = 'none'
+</script>
 
-      const gravity = 0.72
-      const jumpForce = -15
-      const ground = canvas.height - 180
-
-      let worldX = 0
-      let progress = 0
-      let running = true
-      let particles = []
-
-      const player = {
-        x: 160,
-        y: ground,
-        size: 46,
-        velY: 0,
-        rotation: 0,
-      }
-
-      function jump() {
-        if (player.y >= ground - 4) {
-          player.velY = jumpForce
-          jumpSound.currentTime = 0
-          jumpSound.play()
-        }
-      }
-
-      const keyHandler = e => {
-        if (e.code === 'Space' || e.code === 'ArrowUp') jump()
-      }
-
-      const clickHandler = () => jump()
-
-      addEventListener('keydown', keyHandler)
-      addEventListener('mousedown', clickHandler)
-
-      function loop() {
-        if (!running) return
-
-        window.currentGameLoop = requestAnimationFrame(loop)
-
-        ctx.fillStyle = level.color
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-        ctx.fillStyle = '#111827'
-        ctx.fillRect(0, ground + 46, canvas.width, 200)
-
-        for (let i = 0; i < canvas.width; i += 64) {
-          ctx.fillStyle = i % 128 === 0 ? '#1e293b' : '#0f172a'
-          ctx.fillRect(i, ground + 46, 56, 56)
-        }
-
-        worldX += level.speed
-        progress = Math.min(100, Math.floor((worldX / level.length) * 100))
-
-        player.velY += gravity
-        player.y += player.velY
-
-        if (player.y > ground) {
-          player.y = ground
-          player.velY = 0
-        }
-
-        level.obstacles.forEach(obs => {
-          const x = obs.x - worldX
-          const y = ground + 46 - obs.h
-
-          ctx.beginPath()
-          ctx.moveTo(x, ground + 46)
-          ctx.lineTo(x + obs.w / 2, y)
-          ctx.lineTo(x + obs.w, ground + 46)
-          ctx.closePath()
-
-          ctx.fillStyle = '#e2e8f0'
-          ctx.fill()
-
-          ctx.strokeStyle = '#94a3b8'
-          ctx.lineWidth = 3
-          ctx.stroke()
-
-          if (
-            player.x + player.size - 10 > x &&
-            player.x + 10 < x + obs.w &&
-            player.y + player.size - 10 > y
-          ) {
-            explode(player.x + player.size / 2, player.y + player.size / 2)
-            gameOver()
-          }
-        })
-
-        player.rotation += 0.12
-
-        ctx.save()
-        ctx.translate(player.x + player.size / 2, player.y + player.size / 2)
-        ctx.rotate(player.rotation)
-
-        ctx.shadowBlur = 20
-        ctx.shadowColor = '#ffffff'
-
-        ctx.fillStyle = '#ffffff'
-        ctx.fillRect(-player.size / 2, -player.size / 2, player.size, player.size)
-
-        ctx.shadowBlur = 0
-
-        ctx.fillStyle = '#0f172a'
-        ctx.fillRect(-player.size / 2 + 6, -player.size / 2 + 6, player.size - 12, player.size - 12)
-
-        ctx.restore()
-
-        particles.forEach((p, index) => {
-          p.x += p.vx
-          p.y += p.vy
-          p.life -= 0.02
-
-          ctx.fillStyle = `rgba(255,255,255,${p.life})`
-          ctx.fillRect(p.x, p.y, p.size, p.size)
-
-          if (p.life <= 0) particles.splice(index, 1)
-        })
-
-        ctx.fillStyle = '#fff'
-        ctx.font = 'bold 26px Arial'
-        ctx.fillText(level.name, 40, 50)
-
-        ctx.font = '22px Arial'
-        ctx.fillText(progress + '%', 40, 90)
-
-        ctx.fillStyle = '#1e293b'
-        ctx.fillRect(canvas.width / 2 - 250, 30, 500, 16)
-
-        ctx.fillStyle = '#ffffff'
-        ctx.fillRect(canvas.width / 2 - 250, 30, progress * 5, 16)
-
-        if (progress >= 100) {
-          running = false
-
-        deathSound.currentTime = 0
-        deathSound.play()
-
-        ctx.fillStyle = 'rgba(0,0,0,0.7)'  winSound.play()
-
-          ctx.fillStyle = 'rgba(0,0,0,0.7)'
-          ctx.fillRect(0,0,canvas.width,canvas.height)
-
-          ctx.fillStyle = '#fff'
-          ctx.font = 'bold 72px Arial'
-          ctx.fillText('LEVEL COMPLETE', canvas.width / 2 - 320, canvas.height / 2)
-
-          setTimeout(() => {
-            location.reload()
-          }, 3000)
-        }
-      }
-
-      function explode(x, y) {
-        for (let i = 0; i < 40; i++) {
-          particles.push({
-            x,
-            y,
-            vx: (Math.random() - 0.5) * 12,
-            vy: (Math.random() - 0.5) * 12,
-            size: Math.random() * 6 + 2,
-            life: 1,
-          })
-        }
-      }
-
-      function gameOver() {
-        running = false
-
-        deathSound.currentTime = 0
-        deathSound.play()
-
-        ctx.fillStyle = 'rgba(0,0,0,0.7)'
-        ctx.fillRect(0,0,canvas.width,canvas.height)
-
-        ctx.fillStyle = '#fff'
-        ctx.font = 'bold 72px Arial'
-        ctx.fillText('GAME OVER', canvas.width / 2 - 230, canvas.height / 2)
-
-        setTimeout(() => {
-          location.reload()
-        }, 2000)
-
-        removeEventListener('keydown', keyHandler)
-        removeEventListener('mousedown', clickHandler)
-      }
-
-      loop()
-    }
-  </script>
 </body>
 </html>
