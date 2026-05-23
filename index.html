@@ -1,123 +1,364 @@
-<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Geometry Dash Clone</title>
     <style>
-        * {
+        body {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            font-family: 'Arial', sans-serif;
-        }
-
-        .game-container {
-            position: relative;
-            border: 4px solid #fff;
-            border-radius: 10px;
+            font-family: Arial, sans-serif;
             overflow: hidden;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
         }
-
-        canvas {
-            display: block;
-            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+        
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 400px;
         }
-
-        .ui-overlay {
+        
+        #gameCanvas {
+            background: #0f3460;
+            border: 2px solid #e94560;
+            border-radius: 5px;
+        }
+        
+        #uiLayer {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
         }
-
-        .score {
-            color: #fff;
-            font-size: 24px;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-        }
-
-        .start-screen {
+        
+        .screen {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.7);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            pointer-events: auto;
+            background: rgba(15, 52, 96, 0.85);
+            color: white;
             z-index: 10;
         }
-
-        .start-screen h1 {
-            color: #fff;
+        
+        #startScreen h1 {
+            color: #e94560;
+            font-size: 48px;
+            text-shadow: 0 0 10px #ff6b81;
+            margin-bottom: 20px;
+        }
+        
+        #gameOverScreen h2 {
+            color: #e94560;
             font-size: 36px;
             margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
         }
-
-        .start-screen p {
-            color: #ccc;
-            font-size: 18px;
-            margin-bottom: 30px;
+        
+        #scoreDisplay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            color: white;
+            font-weight: bold;
         }
-
-        .start-btn {
-            padding: 15px 40px;
-            font-size: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
+        
+        button {
+            background: #e94560;
+            color: white;
             border: none;
-            border-radius: 50px;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 25px;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            margin-top: 20px;
+            pointer-events: auto;
+            transition: all 0.3s;
         }
-
-        .start-btn:hover {
+        
+        button:hover {
+            background: #ff6b81;
             transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
         }
-
+        
         .hidden {
             display: none !important;
+        }
+        
+        .instructions {
+            text-align: center;
+            margin: 20px 0;
+            color: #4cc9f0;
         }
     </style>
 </head>
 <body>
-    <div class="game-container">
+    <div id="gameContainer">
         <canvas id="gameCanvas" width="800" height="400"></canvas>
         
-        <div class="ui-overlay">
-            <div class="score">Score: <span id="scoreValue">0</span></div>
-        </div>
-
-        <div class="start-screen" id="startScreen">
-            <h1>Geometry Dash Clone</h1>
-            <p>Нажми пробел или кликни для прыжка</p>
-            <button class="start-btn" id="startBtn">Начать игру</button>
+        <div id="uiLayer">
+            <div id="startScreen" class="screen">
+                <h1>GEOMETRY DASH</h1>
+                <p class="instructions">Нажмите ПРОБЕЛ, стрелку ВВЕРХ или кликните мышью чтобы прыгать!</p>
+                <button onclick="startGame()">Начать игру</button>
+            </div>
+            
+            <div id="gameOverScreen" class="screen hidden">
+                <h2>ИГРА ОКОНЧЕНА</h2>
+                <p id="finalScore">Счёт: 0</p>
+                <button onclick="restartGame()">Играть снова</button>
+            </div>
+            
+            <div id="scoreDisplay">Счёт: 0</div>
         </div>
     </div>
-
-    <script src="game.js"></script>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const finalScore = document.getElementById('finalScore');
+        // Игровые переменные
+        let gameRunning = false;
+        let score = 0;
+        let gameSpeed = 5;
+        let gravity = 0.6;
+        let jumpForce = -12;
+        let particles = [];
+        // Игрок
+        const player = {
+            x: 100,
+            y: 300,
+            width: 30,
+            height: 30,
+            velocityY: 0,
+            rotation: 0,
+            isJumping: true,
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.width/2, this.y + this.height/2);
+                ctx.rotate(this.rotation * Math.PI / 180);
+                
+                // Рисуем куб игрока
+                ctx.fillStyle = '#4cc9f0';
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                
+                // Добавляем глазик для стиля
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(-this.width/4, -this.height/4, 8, 8);
+                
+                ctx.restore();
+            },
+            update() {
+                // Применяем гравитацию
+                this.velocityY += gravity;
+                this.y += this.velocityY;
+                
+                // Вращаем игрока при прыжке
+                if (!this.isJumping) {
+                    this.rotation += 8;
+                }
+                
+                // Проверяем столкновения с землёй
+                if (this.y >= 370 - this.height) {
+                    this.y = 370 - this.height;
+                    this.velocityY = 0;
+                    this.isJumping = false;
+                    this.rotation = 0;
+                } else {
+                    this.isJumping = true;
+                }
+            },
+            jump() {
+                if (!this.isJumping) {
+                    this.velocityY = jumpForce;
+                    this.isJumping = true;
+                    
+                    // Создаём частицы при прыжке
+                    for (let i = 0; i < 5; i++) {
+                        particles.push({
+                            x: this.x + this.width/2,
+                            y: this.y + this.height,
+                            size: Math.random() * 4 + 2,
+                            speedX: Math.random() * 4 - 2,
+                            speedY: Math.random() * -3 - 1,
+                            color: '#4cc9f0',
+                            life: 30
+                        });
+                    }
+                }
+            }
+        };
+        // Препятствия
+        let obstacles = [];
+        
+        class Obstacle {
+            constructor(x, type) {
+                this.x = x;
+                this.type = type;
+                this.width = type === 'spike' ? 20 : 30;
+                this.height = type === 'spike' ? 30 : 30;
+                this.y = 370 - this.height;
+            }
+            
+            draw() {
+                if (this.type === 'spike') {
+                    // Рисуем шип (треугольник)
+                    ctx.fillStyle = '#e94560';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y + this.height);
+                    ctx.lineTo(this.x + this.width/2, this.y);
+                    ctx.lineTo(this.x + this.width, this.y + this.height);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    // Рисуем блок
+                    ctx.fillStyle = '#2ec4b6';
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                }
+            }
+            
+            update() {
+                this.x -= gameSpeed;
+            }
+        }
+        // Функция обнаружения столкновений
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+        // Функция создания частиц
+        function createDeathParticles(x, y) {
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    size: Math.random() * 6 + 2,
+                    speedX: Math.random() * 6 - 3,
+                    speedY: Math.random() * 6 - 3,
+                    color: ['#e94560', '#4cc9f0', '#f8b500'][Math.floor(Math.random() * 3)],
+                    life: 40
+                });
+            }
+        }
+        // Основной игровой цикл
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            // Очищаем холст
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Обновляем игрока
+            player.update();
+            player.draw();
+            
+            // Обновляем и рисуем препятствия
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].update();
+                obstacles[i].draw();
+                
+                // Проверяем столкновения
+                if (checkCollision(player, obstacles[i])) {
+                    gameOver();
+                    return;
+                }
+                
+                // Удаляем препятствия, которые вышли за экран
+                if (obstacles[i].x + obstacles[i].width < 0) {
+                    obstacles.splice(i, 1);
+                    score++;
+                    scoreDisplay.textContent = `Счёт: ${score}`;
+                }
+            }
+            
+            // Обновляем и рисуем частицы
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.life--;
+                
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 40;
+                ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+                ctx.globalAlpha = 1;
+                
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+            
+            // Генерируем новые препятствия
+            if (Math.random() < 0.02 && obstacles.length < 5) {
+                const type = Math.random() < 0.7 ? 'spike' : 'block';
+                obstacles.push(new Obstacle(canvas.width, type));
+            }
+            
+            // Увеличиваем скорость игры со временем
+            if (score > 0 && score % 10 === 0) {
+                gameSpeed = 5 + Math.floor(score / 10);
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        // Функция запуска игры
+        function startGame() {
+            gameRunning = true;
+            score = 0;
+            gameSpeed = 5;
+            obstacles = [];
+            particles = [];
+            
+            player.y = 300;
+            player.velocityY = 0;
+            player.rotation = 0;
+            player.isJumping = true;
+            
+            startScreen.classList.add('hidden');
+            scoreDisplay.textContent = `Счёт: ${score}`;
+            
+            gameLoop();
+        }
+        // Функция окончания игры
+        function gameOver() {
+            gameRunning = false;
+            finalScore.textContent = `Счёт: ${score}`;
+            gameOverScreen.classList.remove('hidden');
+            
+            // Создаём частицы при смерти
+            createDeathParticles(player.x + player.width/2, player.y + player.height/2);
+        }
+        // Функция перезапуска игры
+        function restartGame() {
+            gameOverScreen.classList.add('hidden');
+            startGame();
+        }
+        // Обработчики событий
+        document.addEventListener('keydown', (e) => {
+            if ((e.code === 'Space' || e.key === 'ArrowUp') && gameRunning) {
+                player.jump();
+            }
+        });
+        canvas.addEventListener('click', () => {
+            if (gameRunning) {
+                player.jump();
+            }
+        });
+        // Инициализация
+        player.draw();
+    </script>
 </body>
 </html>
