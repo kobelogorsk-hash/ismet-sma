@@ -1,552 +1,537 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Geometry Motion</title>
-
-<script src="https://cdn.tailwindcss.com"></script>
-
-<style>
-
-body{
-  margin:0;
-  overflow-x:hidden;
-  overflow-y:auto;
-  background:#020617;
-  font-family:Inter,sans-serif;
-  color:white;
-}
-
-canvas{
-  display:block;
-}
-
-::-webkit-scrollbar{
-  width:10px;
-}
-
-::-webkit-scrollbar-thumb{
-  background:#334155;
-  border-radius:20px;
-}
-
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geometry Motion: Super Forgiving Hitboxes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin: 0; overflow: hidden; background: #020617; font-family: 'Inter', sans-serif; user-select: none; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+  </style>
 </head>
 <body>
 
-<div id="menu" class="min-h-screen bg-slate-950 px-8 py-10">
-
-  <div class="max-w-7xl mx-auto">
-
-    <div class="flex flex-col xl:flex-row justify-between gap-10 mb-16">
-
-      <div>
-
-        <div class="uppercase tracking-[0.5em] text-slate-500 text-sm mb-4">
-          ARCADE PLATFORMER
+  <div id="ui-layer" class="fixed inset-0 z-10 overflow-y-auto bg-slate-950 text-white transition-opacity duration-300">
+    
+    <div id="menu-main" class="max-w-6xl mx-auto px-6 py-12 h-full flex flex-col justify-between">
+      <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-12">
+        <div>
+          <div class="uppercase tracking-[0.6em] text-cyan-400 text-xs font-bold mb-3">Engine v5.5 • Nerfed Tiny Hitboxes</div>
+          <h1 class="text-6xl md:text-8xl font-extrabold tracking-tighter leading-none bg-gradient-to-r from-white via-slate-200 to-slate-500 bg-clip-text text-transparent">
+            GEOMETRY<br><span class="text-cyan-500">MOTION</span>
+          </h1>
         </div>
-
-        <h1 class="text-7xl md:text-8xl font-black leading-none mb-8">
-          GEOMETRY<br/>
-          MOTION
-        </h1>
-
-        <p class="text-slate-400 text-2xl max-w-3xl leading-relaxed">
-          100 уровней хардкора.
-          Geometry Dash-подобная игра
-          с нормальной физикой и fullscreen gameplay.
-        </p>
-
+        <div class="flex gap-4">
+          <button onclick="switchState('SHOP')" class="px-6 py-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-2xl transition font-medium flex items-center gap-2">
+            🛍️ Магазин
+          </button>
+          <button onclick="switchState('EDITOR')" class="px-6 py-4 bg-cyan-600 hover:bg-cyan-500 rounded-2xl transition font-bold shadow-lg shadow-cyan-500/20 flex items-center gap-2">
+            🛠️ Редактор
+          </button>
+        </div>
       </div>
 
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-8 min-w-[320px] h-fit">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12" id="level-grid"></div>
 
-        <div class="uppercase tracking-[0.4em] text-slate-500 text-sm mb-5">
-          Controls
-        </div>
-
-        <div class="text-5xl font-black mb-4">
-          SPACE
-        </div>
-
-        <div class="text-slate-400 text-xl mb-6">
-          или клик мышью
-        </div>
-
-        <div class="border-t border-slate-800 pt-5 text-slate-500">
-          Geometry Motion v3.0
-        </div>
-
+      <div class="border-t border-slate-900 pt-6 text-slate-500 text-sm flex justify-between items-center">
+        <div>Управление: [ПРОБЕЛ] / [СТРЕЛКА ВВЕРХ] / КЛИК Мыши</div>
+        <div id="global-stats" class="text-cyan-400 font-bold text-lg">Монеты: 0</div>
       </div>
-
     </div>
 
-    <div
-      id="levels"
-      class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 pb-32"
-    ></div>
+    <div id="menu-shop" class="hidden max-w-4xl mx-auto px-6 py-12">
+      <button onclick="switchState('MENU')" class="mb-8 text-slate-400 hover:text-white flex items-center gap-2">← Назад в меню</button>
+      <h2 class="text-4xl font-black mb-8">Магазин скинов</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-6" id="shop-skin-grid"></div>
+    </div>
 
+    <div id="menu-editor" class="hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 p-4 flex flex-col md:flex-row justify-between items-center gap-4 z-20">
+      <div class="flex flex-wrap items-center gap-4">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Объекты:</span>
+        <div class="flex flex-wrap gap-2">
+          <button id="btn-opt-SPIKE" onclick="setEditorItem('SPIKE')" class="editor-btn p-3 bg-cyan-600 rounded-xl text-xl transition-all">🔺</button>
+          <button id="btn-opt-BLOCK" onclick="setEditorItem('BLOCK')" class="editor-btn p-3 bg-slate-800 rounded-xl text-xl transition-all">🧱</button>
+          <button id="btn-opt-ORB" onclick="setEditorItem('ORB')" class="editor-btn p-3 bg-slate-800 rounded-xl text-xl transition-all">🟡</button>
+          <button id="btn-opt-PAD" onclick="setEditorItem('PAD')" class="editor-btn p-3 bg-slate-800 rounded-xl text-xl transition-all">🟥</button>
+          <button id="btn-opt-PORTAL_SHIP" onclick="setEditorItem('PORTAL_SHIP')" class="editor-btn p-3 bg-slate-800 rounded-xl text-xl transition-all">🚀</button>
+          <button id="btn-opt-PORTAL_CUBE" onclick="setEditorItem('PORTAL_CUBE')" class="editor-btn p-3 bg-slate-800 rounded-xl text-xl transition-all">🧊</button>
+          <div class="w-px h-8 bg-slate-800 mx-1"></div>
+          <button id="btn-opt-ERASER" onclick="setEditorItem('ERASER')" class="editor-btn p-3 bg-slate-800 rounded-xl text-xl transition-all hover:bg-rose-950">❌</button>
+        </div>
+        <div class="text-[11px] text-cyan-300 font-mono bg-slate-950 px-3 py-2 rounded-lg">
+          Управление стрелочками. Кнопка <b class="text-white bg-cyan-700 px-1 rounded">[ E ]</b> — поставить/стереть! Камера: <b class="text-white bg-slate-700 px-1 rounded">[ A ] / [ D ]</b>.
+        </div>
+      </div>
+      <div class="flex gap-3 w-full md:w-auto justify-end">
+        <button onclick="clearEditorLevel()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 font-medium rounded-lg text-sm text-rose-400">Очистить 🌌</button>
+        <button onclick="testEditorLevel()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-lg text-sm shadow-lg shadow-emerald-600/20">Тест ▶️</button>
+        <button onclick="switchState('MENU')" class="px-5 py-2 bg-rose-600 hover:bg-rose-500 font-bold rounded-lg text-sm">Выход</button>
+      </div>
+    </div>
   </div>
 
-</div>
-
-<canvas id="game" class="hidden"></canvas>
-
-<script>
-
-const audioCtx =
-  new (window.AudioContext || window.webkitAudioContext)()
-
-function beep(freq,duration,type='square',volume=0.03){
-
-  const osc = audioCtx.createOscillator()
-  const gain = audioCtx.createGain()
-
-  osc.type = type
-  osc.frequency.value = freq
-
-  gain.gain.value = volume
-
-  osc.connect(gain)
-  gain.connect(audioCtx.destination)
-
-  osc.start()
-
-  gain.gain.exponentialRampToValueAtTime(
-    0.0001,
-    audioCtx.currentTime + duration
-  )
-
-  osc.stop(audioCtx.currentTime + duration)
-}
-
-function jumpSound(){
-
-  beep(950,0.05,'square',0.04)
-}
-
-function deathSound(){
-
-  beep(140,0.3,'sawtooth',0.08)
-
-  setTimeout(()=>{
-    beep(80,0.35,'sawtooth',0.06)
-  },80)
-}
-
-function winSound(){
-
-  beep(600,0.08,'square',0.05)
-
-  setTimeout(()=>{
-    beep(850,0.08,'square',0.05)
-  },100)
-
-  setTimeout(()=>{
-    beep(1100,0.12,'square',0.05)
-  },200)
-}
-
-const LEVELS = Array.from({ length: 100 }, (_, i) => {
-
-  const level = i + 1
-
-  return {
-
-    id: level,
-
-    name: `Level ${level}`,
-
-    speed: 4 + level * 0.08,
-
-    difficulty:
-      level < 20
-        ? 'Easy'
-        : level < 40
-        ? 'Normal'
-        : level < 60
-        ? 'Hard'
-        : level < 80
-        ? 'Insane'
-        : 'Demon',
-
-    color: [
-      '#020617',
-      '#0f172a',
-      '#111827',
-      '#1e293b',
-      '#172554',
-    ][level % 5],
-
-    length: 4000 + level * 180,
-
-    obstacles: Array.from(
-      { length: 12 + Math.floor(level * 1.8) },
-      (_, j) => ({
-        x: 700 + j * Math.max(140, 420 - level * 2),
-        h: 40 + ((j + level) % 8) * 18,
-        w: 40 + ((j + level) % 3) * 10,
-      })
-    ),
-  }
-})
-
-const menu = document.getElementById('menu')
-const levelsContainer = document.getElementById('levels')
-const canvas = document.getElementById('game')
-const ctx = canvas.getContext('2d')
-
-LEVELS.forEach(level => {
-
-  const card = document.createElement('button')
-
-  card.className =
-    'bg-slate-900 border border-slate-800 rounded-[32px] p-8 text-left hover:-translate-y-2 hover:border-slate-600 transition-all duration-300 shadow-2xl'
-
-  card.innerHTML = `
-
-    <div class="h-44 rounded-3xl bg-slate-800 mb-8 flex items-end p-4 overflow-hidden">
-
-      <div class="w-full h-3 rounded-full bg-slate-700 relative overflow-hidden">
-
-        <div
-          class="absolute left-10 -top-5 w-8 h-8 bg-white rotate-12 rounded-sm"
-        ></div>
-
-      </div>
-
-    </div>
-
-    <div class="flex items-center justify-between mb-4">
-
-      <div class="text-4xl font-black">
-        ${level.name}
-      </div>
-
-      <div class="text-slate-500">
-        #${level.id}
-      </div>
-
-    </div>
-
-    <div class="space-y-2 text-slate-400 text-lg">
-
-      <div>Difficulty: ${level.difficulty}</div>
-
-      <div>Speed: ${level.speed.toFixed(1)}</div>
-
-      <div>Length: ${level.length}m</div>
-
-      <div>Obstacles: ${level.obstacles.length}</div>
-
-    </div>
-
-  `
-
-  card.onclick = () => startLevel(level)
-
-  levelsContainer.appendChild(card)
-})
-
-function resize(){
-
-  canvas.width = innerWidth
-  canvas.height = innerHeight
-}
-
-resize()
-
-addEventListener('resize', resize)
-
-function startLevel(level){
-
-  menu.style.display = 'none'
-
-  canvas.classList.remove('hidden')
-
-  const gravity = 0.72
-  const jumpForce = -15
-
-  const ground = canvas.height - 180
-
-  let worldX = 0
-  let progress = 0
-  let running = true
-
-  let particles = []
-
-  const player = {
-    x: 180,
-    y: ground,
-    size: 46,
-    velY: 0,
-    rotation: 0,
-  }
-
-  function jump(){
-
-    if(player.y >= ground - 4){
-
-      player.velY = jumpForce
-
-      jumpSound()
-    }
-  }
-
-  const keyHandler = e => {
-
-    if(
-      e.code === 'Space' ||
-      e.code === 'ArrowUp'
-    ){
-      jump()
-    }
-  }
-
-  const clickHandler = () => jump()
-
-  addEventListener('keydown', keyHandler)
-  addEventListener('mousedown', clickHandler)
-
-  function explode(x,y){
-
-    for(let i=0;i<40;i++){
-
-      particles.push({
-        x,
-        y,
-        vx:(Math.random()-0.5)*12,
-        vy:(Math.random()-0.5)*12,
-        size:Math.random()*6+2,
-        life:1,
-      })
-    }
-  }
-
-  function gameOver(){
-
-    running = false
-
-    deathSound()
-
-    ctx.fillStyle='rgba(0,0,0,0.7)'
-    ctx.fillRect(0,0,canvas.width,canvas.height)
-
-    ctx.fillStyle='#fff'
-    ctx.font='bold 72px Arial'
-
-    ctx.fillText(
-      'GAME OVER',
-      canvas.width/2-240,
-      canvas.height/2
-    )
-
-    setTimeout(()=>{
-      location.reload()
-    },2200)
-  }
-
-  function loop(){
-
-    if(!running) return
-
-    requestAnimationFrame(loop)
-
-    ctx.fillStyle = level.color
-    ctx.fillRect(0,0,canvas.width,canvas.height)
-
-    ctx.fillStyle='#111827'
-    ctx.fillRect(0,ground+46,canvas.width,300)
-
-    for(let i=0;i<canvas.width;i+=60){
-
-      ctx.fillStyle =
-        i % 120 === 0
-          ? '#1e293b'
-          : '#0f172a'
-
-      ctx.fillRect(i,ground+46,52,52)
-    }
-
-    worldX += level.speed
-
-    progress = Math.min(
-      100,
-      Math.floor(
-        (worldX / level.length) * 100
-      )
-    )
-
-    player.velY += gravity
-    player.y += player.velY
-
-    if(player.y > ground){
-
-      player.y = ground
-      player.velY = 0
-    }
-
-    level.obstacles.forEach(obs => {
-
-      const x = obs.x - worldX
-      const y = ground + 46 - obs.h
-
-      ctx.beginPath()
-
-      ctx.moveTo(x,ground+46)
-      ctx.lineTo(x+obs.w/2,y)
-      ctx.lineTo(x+obs.w,ground+46)
-
-      ctx.closePath()
-
-      ctx.fillStyle='#e2e8f0'
-      ctx.fill()
-
-      ctx.strokeStyle='#94a3b8'
-      ctx.lineWidth=3
-      ctx.stroke()
-
-      if(
-        player.x + player.size - 10 > x &&
-        player.x + 10 < x + obs.w &&
-        player.y + player.size - 10 > y
-      ){
-
-        explode(
-          player.x + player.size / 2,
-          player.y + player.size / 2
-        )
-
-        gameOver()
+  <button id="btn-stop-test" onclick="stopEditorTest()" class="hidden fixed top-4 right-4 z-30 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg text-sm shadow-xl">
+    Стоп ⏹️
+  </button>
+
+  <canvas id="game"></canvas>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    
+    let currentState = 'MENU'; 
+    let coins = parseInt(localStorage.getItem('gm_coins')) || 0;
+    let activeSkinColor = localStorage.getItem('gm_skin_color') || '#ffffff';
+    let purchasedSkins = JSON.parse(localStorage.getItem('gm_purchased_skins')) || ['#ffffff'];
+
+    let gameLoopId = null;
+    let worldX = 0;
+    let currentLevel = null;
+    let isTestingEditor = false;
+    let isActionActive = false;
+
+    let editorObjects = [];
+    let currentEditorItem = 'SPIKE';
+    let editorScrollX = 0;
+    let keysPressed = {};
+    
+    let gridCursorX = 200;
+    let gridCursorY = 0;
+
+    const physics = { 
+      gravity: 0.85, 
+      jumpForce: -14, 
+      padForce: -16,
+      shipThrust: -1.3, 
+      shipGravity: 0.95,
+      maxShipSpeed: 9
+    };
+    
+    const player = {
+      x: 180, y: 0, size: 40, velY: 0, rotation: 0,
+      mode: 'CUBE', isGrounded: false
+    };
+
+    let particles = [];
+
+    const AudioEngine = {
+      ctx: null,
+      init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+      play(type) {
+        this.init();
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        if (type === 'jump') {
+          osc.type = 'square'; osc.frequency.setValueAtTime(160, t); osc.frequency.exponentialRampToValueAtTime(450, t + 0.1);
+          gain.gain.setValueAtTime(0.12, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.1);
+          osc.start(t); osc.stop(t + 0.1);
+        } else if (type === 'death') {
+          osc.type = 'sawtooth'; osc.frequency.setValueAtTime(250, t); osc.frequency.linearRampToValueAtTime(30, t + 0.3);
+          gain.gain.setValueAtTime(0.25, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.3);
+          osc.start(t); osc.stop(t + 0.3);
+        } else if (type === 'win') {
+          osc.type = 'triangle'; osc.frequency.setValueAtTime(300, t); osc.frequency.setValueAtTime(450, t + 0.1);
+          gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.4);
+          osc.start(t); osc.stop(t + 0.4);
+        }
       }
-    })
+    };
 
-    player.rotation += 0.12
-
-    ctx.save()
-
-    ctx.translate(
-      player.x + player.size / 2,
-      player.y + player.size / 2
-    )
-
-    ctx.rotate(player.rotation)
-
-    ctx.shadowBlur = 20
-    ctx.shadowColor = '#ffffff'
-
-    ctx.fillStyle='#ffffff'
-
-    ctx.fillRect(
-      -player.size/2,
-      -player.size/2,
-      player.size,
-      player.size
-    )
-
-    ctx.shadowBlur = 0
-
-    ctx.fillStyle='#0f172a'
-
-    ctx.fillRect(
-      -player.size/2+6,
-      -player.size/2+6,
-      player.size-12,
-      player.size-12
-    )
-
-    ctx.restore()
-
-    particles.forEach((p,index)=>{
-
-      p.x += p.vx
-      p.y += p.vy
-      p.life -= 0.02
-
-      ctx.fillStyle =
-        `rgba(255,255,255,${p.life})`
-
-      ctx.fillRect(
-        p.x,
-        p.y,
-        p.size,
-        p.size
-      )
-
-      if(p.life <= 0){
-        particles.splice(index,1)
+    const LEVELS = [
+      { id: 1, name: 'Stereo Madness (Full)', speed: 6.2, difficulty: 'Easy', color: '#0b1329', length: 5800, 
+        objects: [
+          {x:500, y:0, type:'SPIKE'}, {x:800, y:0, type:'SPIKE'}, {x:850, y:0, type:'SPIKE'},
+          {x:1100, y:0, type:'BLOCK'}, {x:1150, y:0, type:'BLOCK'}, {x:1200, y:0, type:'BLOCK'},
+          {x:1450, y:0, type:'PAD'}, {x:1800, y:0, type:'SPIKE'}, 
+          {x:2100, y:0, type:'PORTAL_SHIP'}, 
+          {x:2450, y:120, type:'BLOCK'}, {x:2500, y:120, type:'BLOCK'},
+          {x:2700, y:40, type:'SPIKE'}, {x:2900, y:160, type:'BLOCK'}, {x:2950, y:160, type:'BLOCK'},
+          {x:3300, y:40, type:'PORTAL_CUBE'},
+          {x:3600, y:0, type:'BLOCK'}, {x:3650, y:0, type:'BLOCK'}, {x:3700, y:0, type:'BLOCK'},
+          {x:3650, y:50, type:'SPIKE'}, 
+          {x:3950, y:0, type:'ORB'}, {x:4150, y:0, type:'SPIKE'}, {x:4200, y:0, type:'SPIKE'},
+          {x:4450, y:0, type:'PAD'},
+          {x:4750, y:0, type:'BLOCK'}, {x:4800, y:50, type:'BLOCK'}, {x:4850, y:100, type:'BLOCK'},
+          {x:5100, y:0, type:'SPIKE'}, {x:5150, y:0, type:'SPIKE'}, {x:5200, y:0, type:'SPIKE'},
+          {x:5450, y:0, type:'BLOCK'}
+        ]
+      },
+      { id: 2, name: 'Portal Mania', speed: 7.0, difficulty: 'Normal', color: '#1a102f', length: 5000,
+        objects: [
+          {x:400, y:0, type:'SPIKE'}, {x:700, y:0, type:'PORTAL_SHIP'}, 
+          {x:1100, y:100, type:'SPIKE'}, {x:1400, y:0, type:'PORTAL_CUBE'},
+          {x:1700, y:0, type:'PAD'}, {x:2000, y:0, type:'SPIKE'}
+        ]
       }
-    })
+    ];
 
-    ctx.fillStyle='#fff'
+    const SKINS = [
+      { color: '#ffffff', price: 0 }, { color: '#ef4444', price: 10 },
+      { color: '#3b82f6', price: 20 }, { color: '#10b981', price: 35 },
+      { color: '#f59e0b', price: 50 }, { color: '#ec4899', price: 80 }
+    ];
 
-    ctx.font='bold 28px Arial'
+    function init() {
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+      renderLevelGrid(); renderShop(); updateUI();
+      
+      window.addEventListener('keydown', e => {
+        if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
 
-    ctx.fillText(
-      level.name,
-      40,
-      50
-    )
+        if (currentState === 'EDITOR' && !isTestingEditor) {
+          if (e.code === 'ArrowRight') { gridCursorX += 50; if(gridCursorX - editorScrollX > canvas.width - 100) editorScrollX += 50; }
+          if (e.code === 'ArrowLeft') { gridCursorX = Math.max(0, gridCursorX - 50); if(gridCursorX < editorScrollX + 100) editorScrollX = Math.max(0, editorScrollX - 50); }
+          if (e.code === 'ArrowUp') { gridCursorY += 50; }
+          if (e.code === 'ArrowDown') { gridCursorY = Math.max(0, gridCursorY - 50); }
+          if (e.code === 'KeyE') handleKeyboardPlace();
+        }
 
-    ctx.font='22px Arial'
+        if (e.code === 'Space' || e.code === 'ArrowUp') {
+          if (!keysPressed[e.code]) { keysPressed[e.code] = true; isActionActive = true; triggerJump(); }
+        }
+        if (['KeyD', 'ArrowRight', 'KeyA', 'ArrowLeft'].includes(e.code)) keysPressed[e.code] = true;
+      });
 
-    ctx.fillText(
-      progress + '%',
-      40,
-      90
-    )
+      window.addEventListener('keyup', e => {
+        keysPressed[e.code] = false;
+        if (e.code === 'Space' || e.code === 'ArrowUp') isActionActive = false;
+      });
 
-    ctx.fillStyle='#1e293b'
+      canvas.addEventListener('mousedown', e => {
+        if (currentState === 'EDITOR' && !isTestingEditor) {
+          e.preventDefault();
+          const groundLine = canvas.height - 150;
+          const rect = canvas.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left;
+          const mouseY = e.clientY - rect.top;
+          if (mouseY < groundLine) {
+            gridCursorX = Math.floor((mouseX + editorScrollX) / 50) * 50;
+            gridCursorY = Math.floor((groundLine - mouseY) / 50) * 50;
+            handleKeyboardPlace();
+          }
+          return;
+        }
+        if (e.button === 0) { isActionActive = true; triggerJump(); }
+      });
 
-    ctx.fillRect(
-      canvas.width/2-250,
-      30,
-      500,
-      18
-    )
-
-    ctx.fillStyle='#ffffff'
-
-    ctx.fillRect(
-      canvas.width/2-250,
-      30,
-      progress * 5,
-      18
-    )
-
-    if(progress >= 100){
-
-      running = false
-
-      winSound()
-
-      ctx.fillStyle='rgba(0,0,0,0.7)'
-      ctx.fillRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      )
-
-      ctx.fillStyle='#fff'
-      ctx.font='bold 72px Arial'
-
-      ctx.fillText(
-        'LEVEL COMPLETE',
-        canvas.width/2-340,
-        canvas.height/2
-      )
-
-      setTimeout(()=>{
-        location.reload()
-      },3000)
+      window.addEventListener('mouseup', () => { isActionActive = false; });
+      window.addEventListener('contextmenu', e => { e.preventDefault(); });
     }
-  }
 
-  loop()
-}
+    function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 
-</script>
+    function updateUI() {
+      document.getElementById('global-stats').innerText = `Монеты: ${coins}`;
+      localStorage.setItem('gm_coins', coins);
+      localStorage.setItem('gm_purchased_skins', JSON.stringify(purchasedSkins));
+    }
+
+    function switchState(state) {
+      currentState = state;
+      document.getElementById('ui-layer').classList.toggle('bg-slate-950/40', state === 'EDITOR');
+      document.getElementById('menu-main').classList.toggle('hidden', state !== 'MENU');
+      document.getElementById('menu-shop').classList.toggle('hidden', state !== 'SHOP');
+      document.getElementById('menu-editor').classList.toggle('hidden', state !== 'EDITOR');
+      document.getElementById('btn-stop-test').classList.add('hidden');
+      
+      if (state === 'MENU' || state === 'SHOP') {
+        if(gameLoopId) cancelAnimationFrame(gameLoopId);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      if (state === 'EDITOR') { isTestingEditor = false; editorScrollX = 0; gridCursorX = 200; gridCursorY = 0; startEditorLoop(); }
+    }
+
+    function renderLevelGrid() {
+      const container = document.getElementById('level-grid');
+      container.innerHTML = LEVELS.map((lvl, index) => `
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex justify-between items-center">
+          <div><h3 class="text-xl font-bold">${lvl.name}</h3><div class="text-sm text-slate-400">Скорость: ${lvl.speed}</div></div>
+          <button onclick="startLevel(LEVELS[${index}])" class="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-bold transition">Старт</button>
+        </div>
+      `).join('');
+    }
+
+    function renderShop() {
+      const container = document.getElementById('shop-skin-grid');
+      container.innerHTML = SKINS.map(skin => {
+        const isBought = purchasedSkins.includes(skin.color);
+        const isActive = activeSkinColor === skin.color;
+        let label = isBought ? 'Куплено' : `${skin.price} 🪙`; if (isActive) label = 'Выбран';
+        return `
+          <div onclick="buyOrSelectSkin('${skin.color}', ${skin.price})" class="p-4 rounded-2xl bg-slate-900 border ${isActive ? 'border-cyan-500' : 'border-slate-800'} text-center cursor-pointer hover:scale-105 transition">
+            <div class="w-16 h-16 mx-auto rounded-xl mb-4 shadow-lg" style="background: ${skin.color}"></div>
+            <div class="text-xs font-bold ${isActive ? 'text-cyan-400' : 'text-slate-300'}">${label}</div>
+          </div>`;
+      }).join('');
+    }
+
+    function buyOrSelectSkin(color, price) {
+      if (purchasedSkins.includes(color)) { activeSkinColor = color; localStorage.setItem('gm_skin_color', color); }
+      else if (coins >= price) { coins -= price; purchasedSkins.push(color); activeSkinColor = color; localStorage.setItem('gm_skin_color', color); updateUI(); }
+      renderShop();
+    }
+
+    function triggerJump() {
+      if (currentState !== 'PLAYING') return;
+      if (player.mode === 'CUBE' && player.isGrounded) { player.velY = physics.jumpForce; player.isGrounded = false; AudioEngine.play('jump'); }
+    }
+
+    function startLevel(level) {
+      currentLevel = level; currentState = 'PLAYING';
+      document.getElementById('ui-layer').classList.add('hidden');
+      worldX = 0; player.y = canvas.height - 300; player.velY = 0; player.mode = 'CUBE'; player.rotation = 0; player.isGrounded = false; particles = [];
+      if(gameLoopId) cancelAnimationFrame(gameLoopId);
+      gameLoop();
+    }
+
+    function gameLoop() {
+      if (currentState !== 'PLAYING') return;
+      gameLoopId = requestAnimationFrame(gameLoop);
+      updatePhysics(); checkCollisions(); drawGame();
+    }
+
+    function updatePhysics() {
+      const groundLine = canvas.height - 150;
+      worldX += currentLevel.speed;
+
+      if (player.mode === 'CUBE') { 
+        player.velY += physics.gravity; 
+        if (!player.isGrounded) player.rotation += 0.09; 
+        if (isActionActive && player.isGrounded) triggerJump();
+      } else if (player.mode === 'SHIP') {
+        player.velY += isActionActive ? physics.shipThrust : physics.shipGravity;
+        player.velY = Math.max(-physics.maxShipSpeed, Math.min(physics.maxShipSpeed, player.velY)); 
+        player.rotation = player.velY * 0.07;
+      }
+      player.y += player.velY;
+
+      if (player.y + player.size > groundLine) {
+        player.y = groundLine - player.size; player.velY = 0; player.isGrounded = true;
+        if (player.mode === 'CUBE') {
+          let angle = player.rotation % (Math.PI * 2); if (angle < 0) angle += Math.PI * 2;
+          player.rotation = Math.round(angle / (Math.PI / 2)) * (Math.PI / 2);
+        }
+      }
+      if (player.y < 0) { player.y = 0; player.velY = 0; }
+    }
+
+    // ================= УЛЬТРА-МЯГКИЕ И УМЕНЬШЕННЫЕ ХИТБОКСЫ =================
+    function checkCollisions() {
+      const groundLine = canvas.height - 150;
+      const objects = isTestingEditor ? editorObjects : currentLevel.objects;
+
+      const pLeft = player.x; const pRight = player.x + player.size;
+      const pTop = player.y; const pBottom = player.y + player.size;
+
+      objects.forEach(obj => {
+        const objX = obj.x - worldX; const objY = groundLine - obj.y - 50; const size = 50;
+        
+        if (pRight > objX && pLeft < objX + size) {
+          if (obj.type === 'SPIKE') {
+            // СУПЕР-УРЕЗАННЫЙ ХИТБОКС ШИПА (-50% с каждой стороны для прощения ошибок!)
+            const sLeft = objX + 18;
+            const sRight = objX + size - 18;
+            const sTop = objY + 24; 
+            const sBottom = objY + size;
+
+            if (pRight > sLeft && pLeft < sRight && pBottom > sTop && pTop < sBottom) {
+              triggerGameOver();
+            }
+          } 
+          else if (obj.type === 'BLOCK') {
+            // Расширенное окно безопасного приземления (20 пикселей вместо 15)
+            if (pBottom >= objY && pBottom <= objY + 20 && player.velY >= 0) {
+              if (pRight - 8 > objX && pLeft + 8 < objX + size) {
+                player.y = objY - player.size; player.velY = 0; player.isGrounded = true; return;
+              }
+            } 
+            // Смерть от стены наступает только если куб заехал глубоко внутрь блока
+            if (pBottom > objY + 6 && pTop < objY + size - 6) {
+              if (pRight - 8 > objX && pLeft + 8 < objX + size) triggerGameOver();
+            }
+          } 
+          else if (obj.type === 'ORB') {
+            if (pBottom > objY && pTop < objY + size && isActionActive) {
+              player.velY = physics.jumpForce * 1.15; player.isGrounded = false; isActionActive = false;
+              AudioEngine.play('jump'); createExplosion(objX + 25, objY + 25, '#f59e0b');
+            }
+          } 
+          else if (obj.type === 'PAD') {
+            if (pBottom >= objY + 15 && pBottom <= objY + size && player.velY >= 0) {
+              player.velY = physics.padForce; player.isGrounded = false;
+              AudioEngine.play('jump'); createExplosion(objX + 25, objY + 25, '#ef4444');
+            }
+          }
+          else if (obj.type === 'PORTAL_SHIP') { if (player.mode !== 'SHIP') { player.mode = 'SHIP'; createExplosion(player.x, player.y, '#06b6d4'); } }
+          else if (obj.type === 'PORTAL_CUBE') { if (player.mode !== 'CUBE') { player.mode = 'CUBE'; player.rotation = 0; createExplosion(player.x, player.y, '#3b82f6'); } }
+        }
+      });
+
+      if (!isTestingEditor && worldX >= currentLevel.length) {
+        currentState = 'MENU'; AudioEngine.play('win'); coins += 15; updateUI(); alert('Победа! +15 🪙'); resetToMenu();
+      }
+    }
+
+    function triggerGameOver() {
+      currentState = 'MENU'; AudioEngine.play('death'); createExplosion(player.x + player.size/2, player.y + player.size/2, '#ff3333');
+      setTimeout(() => { resetToMenu(); }, 1200);
+    }
+
+    function resetToMenu() {
+      document.getElementById('ui-layer').classList.remove('hidden');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if(gameLoopId) cancelAnimationFrame(gameLoopId);
+      if (isTestingEditor) { stopEditorTest(); } else { switchState('MENU'); }
+    }
+
+    function createExplosion(x, y, color) {
+      for(let i=0; i<20; i++) {
+        particles.push({ x, y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, size: Math.random() * 5 + 2, life: 1, color: color });
+      }
+    }
+
+    function drawGame() {
+      ctx.fillStyle = currentLevel.color; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const groundLine = canvas.height - 150;
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      for(let x = -(worldX % 60); x < canvas.width; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, groundLine); ctx.stroke(); }
+
+      ctx.fillStyle = '#090d16'; ctx.fillRect(0, groundLine, canvas.width, 150);
+      ctx.fillStyle = '#22d3ee'; ctx.fillRect(0, groundLine, canvas.width, 3);
+
+      const objects = isTestingEditor ? editorObjects : currentLevel.objects;
+      objects.forEach(obj => {
+        const objX = obj.x - worldX; const objY = groundLine - obj.y - 50;
+        if (objX < -100 || objX > canvas.width + 100) return;
+
+        if (obj.type === 'SPIKE') {
+          ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.moveTo(objX, objY + 50); ctx.lineTo(objX + 25, objY); ctx.lineTo(objX + 50, objY + 50); ctx.closePath(); ctx.fill();
+        } else if (obj.type === 'BLOCK') {
+          ctx.fillStyle = '#1e293b'; ctx.fillRect(objX, objY, 50, 50); ctx.strokeStyle = '#475569'; ctx.strokeRect(objX, objY, 50, 50);
+        } else if (obj.type === 'ORB') {
+          ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(objX + 25, objY + 25, 14, 0, Math.PI*2); ctx.fill();
+        } else if (obj.type === 'PAD') {
+          ctx.fillStyle = '#ef4444'; ctx.fillRect(objX, objY + 35, 50, 15);
+        } else if (obj.type === 'PORTAL_SHIP') {
+          ctx.fillStyle = '#06b6d4'; ctx.fillRect(objX + 15, objY - 30, 20, 110);
+        } else if (obj.type === 'PORTAL_CUBE') {
+          ctx.fillStyle = '#3b82f6'; ctx.fillRect(objX + 15, objY - 30, 20, 110);
+        }
+      });
+
+      particles.forEach((p, idx) => {
+        p.x += p.vx; p.y += p.vy; p.life -= 0.025;
+        ctx.fillStyle = p.color || `rgba(255,255,255,${p.life})`; ctx.fillRect(p.x, p.y, p.size, p.size);
+        if(p.life <= 0) particles.splice(idx, 1);
+      });
+
+      ctx.save(); ctx.translate(player.x + player.size/2, player.y + player.size/2); ctx.rotate(player.rotation); ctx.fillStyle = activeSkinColor;
+      if (player.mode === 'CUBE') {
+        ctx.fillRect(-player.size/2, -player.size/2, player.size, player.size);
+        ctx.fillStyle = '#0f172a'; ctx.fillRect(5, -10, 7, 7); ctx.fillRect(5, 3, 7, 7);
+      } else {
+        ctx.beginPath(); ctx.moveTo(-18, -12); ctx.lineTo(22, 0); ctx.lineTo(-18, 12); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // ================= РЕДАКТОР УРОВНЕЙ =================
+    function startEditorLoop() {
+      if(currentState !== 'EDITOR' || isTestingEditor) return;
+      gameLoopId = requestAnimationFrame(startEditorLoop);
+
+      if (keysPressed['KeyD']) editorScrollX += 12;
+      if (keysPressed['KeyA']) editorScrollX = Math.max(0, editorScrollX - 12);
+
+      ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const groundLine = canvas.height - 150;
+      
+      ctx.fillStyle = '#090d16'; ctx.fillRect(0, groundLine, canvas.width, 150);
+      ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, groundLine); ctx.lineTo(canvas.width, groundLine); ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(51, 65, 85, 0.25)'; ctx.lineWidth = 1;
+      const snapOffset = -(editorScrollX % 50);
+      for(let x = snapOffset; x < canvas.width; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, groundLine); ctx.stroke(); }
+      for(let y = groundLine; y > 0; y -= 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
+
+      editorObjects.forEach(obj => {
+        const renderX = obj.x - editorScrollX; const renderY = groundLine - obj.y - 50;
+        if(renderX < -50 || renderX > canvas.width) return;
+
+        if (obj.type === 'SPIKE') {
+          ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.moveTo(renderX, renderY + 50); ctx.lineTo(renderX + 25, renderY); ctx.lineTo(renderX + 50, renderY + 50); ctx.closePath(); ctx.fill();
+        } else if (obj.type === 'BLOCK') {
+          ctx.fillStyle = '#334155'; ctx.fillRect(renderX, renderY, 50, 50); ctx.strokeStyle = '#64748b'; ctx.strokeRect(renderX, renderY, 50, 50);
+        } else if (obj.type === 'ORB') {
+          ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(renderX + 25, renderY + 25, 14, 0, Math.PI*2); ctx.fill();
+        } else if (obj.type === 'PAD') {
+          ctx.fillStyle = '#ef4444'; ctx.fillRect(renderX, renderY + 35, 50, 15);
+        } else if (obj.type === 'PORTAL_SHIP') {
+          ctx.fillStyle = '#06b6d4'; ctx.fillRect(renderX + 15, renderY - 30, 20, 110);
+        } else if (obj.type === 'PORTAL_CUBE') {
+          ctx.fillStyle = '#3b82f6'; ctx.fillRect(renderX + 15, renderY - 30, 20, 110);
+        }
+      });
+
+      const cursorRenderX = gridCursorX - editorScrollX;
+      const cursorRenderY = groundLine - gridCursorY - 50;
+      ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 3;
+      ctx.strokeRect(cursorRenderX + 2, cursorRenderY + 2, 46, 46);
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.15)'; ctx.fillRect(cursorRenderX + 2, cursorRenderY + 2, 46, 46);
+    }
+
+    function setEditorItem(type) {
+      currentEditorItem = type;
+      document.querySelectorAll('.editor-btn').forEach(btn => btn.className = 'editor-btn p-3 bg-slate-800 rounded-xl text-xl transition-all');
+      document.getElementById(`btn-opt-${type}`).className = `editor-btn p-3 rounded-xl text-xl transition-all ${type === 'ERASER' ? 'bg-rose-600 shadow-lg shadow-rose-600/30' : 'bg-cyan-600 shadow-lg shadow-cyan-600/30'}`;
+    }
+
+    function handleKeyboardPlace() {
+      const idx = editorObjects.findIndex(o => o.x === gridCursorX && o.y === gridCursorY);
+      if (currentEditorItem === 'ERASER') {
+        if (idx !== -1) editorObjects.splice(idx, 1);
+      } else {
+        if (idx !== -1) {
+          if (editorObjects[idx].type === currentEditorItem) editorObjects.splice(idx, 1); 
+          else editorObjects[idx].type = currentEditorItem; 
+        } else {
+          editorObjects.push({ x: gridCursorX, y: gridCursorY, type: currentEditorItem });
+        }
+      }
+    }
+
+    function clearEditorLevel() {
+      if (confirm('Очистить всю карту?')) { editorObjects = []; editorScrollX = 0; gridCursorX = 200; gridCursorY = 0; }
+    }
+
+    function testEditorLevel() {
+      if(editorObjects.length === 0) return alert('Поставьте объекты на карту!');
+      isTestingEditor = true; 
+      let maxDist = 2000;
+      editorObjects.forEach(o => { if(o.x > maxDist) maxDist = o.x; });
+      currentLevel = { name: 'Тест', speed: 6.2, color: '#090d16', length: maxDist + 600 };
+      
+      currentState = 'PLAYING';
+      document.getElementById('ui-layer').classList.add('hidden');
+      document.getElementById('btn-stop-test').classList.remove('hidden');
+      worldX = 0; player.y = canvas.height - 300; player.velY = 0; player.mode = 'CUBE'; player.isGrounded = false;
+      gameLoop();
+    }
+
+    function stopEditorTest() {
+      isTestingEditor = false;
+      if(gameLoopId) cancelAnimationFrame(gameLoopId);
+      switchState('EDITOR');
+    }
+
+    init();
+  </script>
 </body>
 </html>
