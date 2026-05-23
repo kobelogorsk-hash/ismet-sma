@@ -1,137 +1,203 @@
-// Игровые константы
-const CANVAS_WIDTH = 800;
-const CANVAS_HEIGHT = 400;
-const GROUND_HEIGHT = 50;
-const GRAVITY = 0.6;
-const JUMP_FORCE = -12;
-const GAME_SPEED = 6;
+// ============================================
+// GEOMETRY DASH - Полная версия с уровнями
+// ============================================
 
-// Получаем элементы
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const scoreElement = document.getElementById('scoreValue');
-const startScreen = document.getElementById('startScreen');
-const startBtn = document.getElementById('startBtn');
+// Константы игры
+const CANVAS_WIDTH = 900;
+const CANVAS_HEIGHT = 500;
+const GROUND_HEIGHT = 60;
+const PLAYER_SIZE = 35;
+const PLAYER_X = 120;
+
+// Настройки уровней
+const LEVELS = {
+    easy: {
+        name: 'Лёгкий',
+        speed: 5,
+        gravity: 0.5,
+        jumpForce: -11,
+        obstacleInterval: 120,
+        length: 50,
+        colors: { bg: ['#1a1a4e', '#2d2d6e'], ground: ['#00b894', '#00cec9'] }
+    },
+    medium: {
+        name: 'Средний',
+        speed: 7,
+        gravity: 0.6,
+        jumpForce: -12,
+        obstacleInterval: 90,
+        length: 80,
+        colors: { bg: ['#2d1a4e', '#4e2d6e'], ground: ['#fdcb6e', '#e17055'] }
+    },
+    hard: {
+        name: 'Сложный',
+        speed: 9,
+        gravity: 0.7,
+        jumpForce: -13,
+        obstacleInterval: 70,
+        length: 120,
+        colors: { bg: ['#4e1a2d', '#6e2d4e'], ground: ['#d63031', '#6c5ce7'] }
+    }
+};
 
 // Состояние игры
 let gameState = {
     isRunning: false,
+    currentLevel: 'easy',
     score: 0,
-    frameCount: 0
+    attempts: 1,
+    frameCount: 0,
+    levelProgress: 0,
+    highScores: { easy: 0, medium: 0, hard: 0 }
 };
 
-// Игрок (куб)
+// DOM элементы
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const progressBar = document.getElementById('progressBar');
+const startScreen = document.getElementById('startScreen');
+const levelSelectScreen = document.getElementById('levelSelectScreen');
+const deathScreen = document.getElementById('deathScreen');
+const winScreen = document.getElementById('winScreen');
+const scoreValue = document.getElementById('scoreValue');
+const attemptValue = document.getElementById('attemptValue');
+const winScore = document.getElementById('winScore');
+const winAttempts = document.getElementById('winAttempts');
+
+// Игрок
 let player = {
-    x: 100,
-    y: CANVAS_HEIGHT - GROUND_HEIGHT - 30,
-    width: 30,
-    height: 30,
+    x: PLAYER_X,
+    y: 0,
     velocityY: 0,
-    isJumping: false,
     rotation: 0,
-    color: '#ffd700'
+    isJumping: false,
+    color: '#ffd700',
+    trail: []
 };
 
-// Препятствия
+// Препятствия и частицы
 let obstacles = [];
-
-// Частицы для эффектов
 let particles = [];
+let backgroundParticles = [];
 
-// Инициализация игры
-function initGame() {
-    player.y = CANVAS_HEIGHT - GROUND_HEIGHT - player.height;
+// Инициализация игрока
+function initPlayer() {
+    player.y = CANVAS_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE;
     player.velocityY = 0;
-    player.isJumping = false;
     player.rotation = 0;
-    obstacles = [];
-    particles = [];
-    gameState.score = 0;
-    gameState.frameCount = 0;
-    scoreElement.textContent = '0';
+    player.isJumping = false;
+    player.trail = [];
 }
 
 // Создание препятствия
-function createObstacle() {
-    const types = ['spike', 'block'];
+function createObstacle(levelConfig) {
+    const types = ['spike', 'spike', 'block', 'triple'];
     const type = types[Math.floor(Math.random() * types.length)];
     
     let obstacle = {
         x: CANVAS_WIDTH,
-        y: CANVAS_HEIGHT - GROUND_HEIGHT,
         type: type,
         passed: false
     };
     
     if (type === 'spike') {
-        obstacle.width = 30;
-        obstacle.height = 40;
-        obstacle.y -= obstacle.height;
+        obstacle.width = 35;
+        obstacle.height = 45;
+        obstacle.y = CANVAS_HEIGHT - GROUND_HEIGHT - obstacle.height;
     } else if (type === 'block') {
-        obstacle.width = 40;
-        obstacle.height = 40;
-        obstacle.y -= obstacle.height;
+        obstacle.width = 45;
+        obstacle.height = 45;
+        obstacle.y = CANVAS_HEIGHT - GROUND_HEIGHT - obstacle.height;
+    } else if (type === 'triple') {
+        obstacle.width = 100;
+        obstacle.height = 35;
+        obstacle.y = CANVAS_HEIGHT - GROUND_HEIGHT - obstacle.height;
     }
     
     obstacles.push(obstacle);
 }
 
 // Создание частиц
-function createParticles(x, y, color, count = 10) {
+function createParticles(x, y, color, count = 15) {
     for (let i = 0; i < count; i++) {
         particles.push({
             x: x,
             y: y,
-            vx: (Math.random() - 0.5) * 10,
-            vy: (Math.random() - 0.5) * 10,
+            vx: (Math.random() - 0.5) * 12,
+            vy: (Math.random() - 0.5) * 12,
             life: 1,
+            decay: 0.02 + Math.random() * 0.02,
+            size: 3 + Math.random() * 4,
             color: color
         });
     }
 }
 
+// Создание фоновых частиц
+function initBackgroundParticles() {
+    backgroundParticles = [];
+    for (let i = 0; i < 50; i++) {
+        backgroundParticles.push({
+            x: Math.random() * CANVAS_WIDTH,
+            y: Math.random() * (CANVAS_HEIGHT - GROUND_HEIGHT),
+            size: Math.random() * 2 + 1,
+            speed: Math.random() * 0.5 + 0.2,
+            alpha: Math.random() * 0.5 + 0.2
+        });
+    }
+}
+
 // Обновление игрока
-function updatePlayer() {
-    // Применяем гравитацию
-    player.velocityY += GRAVITY;
+function updatePlayer(levelConfig) {
+    // Добавляем след
+    if (gameState.frameCount % 3 === 0) {
+        player.trail.push({
+            x: player.x,
+            y: player.y,
+            rotation: player.rotation,
+            alpha: 0.6
+        });
+        if (player.trail.length > 5) player.trail.shift();
+    }
+    
+    // Гравитация
+    player.velocityY += levelConfig.gravity;
     player.y += player.velocityY;
     
-    // Проверка столкновения с землей
-    if (player.y >= CANVAS_HEIGHT - GROUND_HEIGHT - player.height) {
-        player.y = CANVAS_HEIGHT - GROUND_HEIGHT - player.height;
+    // Проверка земли
+    if (player.y >= CANVAS_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE) {
+        player.y = CANVAS_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE;
         player.velocityY = 0;
         player.isJumping = false;
-        
-        // Выравниваем вращение при приземлении
         player.rotation = Math.round(player.rotation / (Math.PI / 2)) * (Math.PI / 2);
     } else {
-        // Вращение во время прыжка
-        player.rotation += 0.15;
+        player.rotation += 0.12;
     }
 }
 
 // Обновление препятствий
-function updateObstacles() {
-    // Создаем новые препятствия
-    if (gameState.frameCount % 90 === 0) {
-        createObstacle();
+function updateObstacles(levelConfig) {
+    const totalObstacles = Math.ceil(levelConfig.length * (levelConfig.obstacleInterval / 60));
+    
+    if (gameState.frameCount % levelConfig.obstacleInterval === 0 && 
+        gameState.levelProgress < levelConfig.length) {
+        createObstacle(levelConfig);
+        gameState.levelProgress++;
     }
     
-    // Двигаем и удаляем препятствия
     for (let i = obstacles.length - 1; i >= 0; i--) {
-        obstacles[i].x -= GAME_SPEED;
+        obstacles[i].x -= levelConfig.speed;
         
-        // Удаляем препятствия за пределами экрана
         if (obstacles[i].x + obstacles[i].width < 0) {
             obstacles.splice(i, 1);
             continue;
         }
         
-        // Увеличиваем счет
         if (!obstacles[i].passed && obstacles[i].x + obstacles[i].width < player.x) {
             obstacles[i].passed = true;
             gameState.score++;
-            scoreElement.textContent = gameState.score;
+            scoreDisplay.textContent = gameState.score;
         }
     }
 }
@@ -141,7 +207,8 @@ function updateParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
         particles[i].x += particles[i].vx;
         particles[i].y += particles[i].vy;
-        particles[i].life -= 0.02;
+        particles[i].life -= particles[i].decay;
+        particles[i].vy += 0.3;
         
         if (particles[i].life <= 0) {
             particles.splice(i, 1);
@@ -151,62 +218,128 @@ function updateParticles() {
 
 // Проверка столкновений
 function checkCollisions() {
+    const hitBox = 8;
     const playerRect = {
-        x: player.x + 5,
-        y: player.y + 5,
-        width: player.width - 10,
-        height: player.height - 10
+        x: player.x + hitBox,
+        y: player.y + hitBox,
+        width: PLAYER_SIZE - hitBox * 2,
+        height: PLAYER_SIZE - hitBox * 2
     };
     
     for (let obstacle of obstacles) {
-        let obstacleRect;
+        let obsRect;
         
         if (obstacle.type === 'spike') {
-            obstacleRect = {
+            obsRect = {
                 x: obstacle.x + 5,
                 y: obstacle.y + 10,
                 width: obstacle.width - 10,
-                height: obstacle.height - 10
+                height: obstacle.height - 15
             };
         } else {
-            obstacleRect = {
-                x: obstacle.x,
-                y: obstacle.y,
-                width: obstacle.width,
-                height: obstacle.height
+            obsRect = {
+                x: obstacle.x + 3,
+                y: obstacle.y + 3,
+                width: obstacle.width - 6,
+                height: obstacle.height - 6
             };
         }
         
-        if (
-            playerRect.x < obstacleRect.x + obstacleRect.width &&
-            playerRect.x + playerRect.width > obstacleRect.x &&
-            playerRect.y < obstacleRect.y + obstacleRect.height &&
-            playerRect.y + playerRect.height > obstacleRect.y
-        ) {
-            gameOver();
-            return;
+        if (playerRect.x < obsRect.x + obsRect.width &&
+            playerRect.x + playerRect.width > obsRect.x &&
+            playerRect.y < obsRect.y + obsRect.height &&
+            playerRect.y + playerRect.height > obsRect.y) {
+            return true;
         }
+    }
+    return false;
+}
+
+// Отрисовка фона
+function drawBackground(levelConfig) {
+    const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+    gradient.addColorStop(0, levelConfig.colors.bg[0]);
+    gradient.addColorStop(1, levelConfig.colors.bg[1]);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    // Фоновые частицы
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    for (let p of backgroundParticles) {
+        ctx.globalAlpha = p.alpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        p.x -= p.speed;
+        if (p.x < 0) p.x = CANVAS_WIDTH;
+    }
+    ctx.globalAlpha = 1;
+}
+
+// Отрисовка земли
+function drawGround(levelConfig) {
+    const gradient = ctx.createLinearGradient(0, CANVAS_HEIGHT - GROUND_HEIGHT, 0, CANVAS_HEIGHT);
+    gradient.addColorStop(0, levelConfig.colors.ground[0]);
+    gradient.addColorStop(1, levelConfig.colors.ground[1]);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, CANVAS_HEIGHT - GROUND_HEIGHT, CANVAS_WIDTH, GROUND_HEIGHT);
+    
+    // Верхняя линия
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, CANVAS_HEIGHT - GROUND_HEIGHT);
+    ctx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_HEIGHT);
+    ctx.stroke();
+    
+    // Узор на земле
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    const offset = (gameState.frameCount * LEVELS[gameState.currentLevel].speed) % 50;
+    for (let i = -50; i < CANVAS_WIDTH; i += 50) {
+        ctx.beginPath();
+        ctx.moveTo(i - offset, CANVAS_HEIGHT - GROUND_HEIGHT + 10);
+        ctx.lineTo(i - offset + 20, CANVAS_HEIGHT - 10);
+        ctx.lineTo(i - offset + 10, CANVAS_HEIGHT - 10);
+        ctx.lineTo(i - offset - 10, CANVAS_HEIGHT - GROUND_HEIGHT + 10);
+        ctx.fill();
     }
 }
 
 // Отрисовка игрока
 function drawPlayer() {
+    // След
+    for (let t of player.trail) {
+        ctx.save();
+        ctx.translate(t.x + PLAYER_SIZE/2, t.y + PLAYER_SIZE/2);
+        ctx.rotate(t.rotation);
+        ctx.fillStyle = `rgba(255, 215, 0, ${t.alpha})`;
+        ctx.fillRect(-PLAYER_SIZE/2, -PLAYER_SIZE/2, PLAYER_SIZE, PLAYER_SIZE);
+        t.alpha -= 0.1;
+        ctx.restore();
+    }
+    player.trail = player.trail.filter(t => t.alpha > 0);
+    
+    // Игрок
     ctx.save();
-    ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+    ctx.translate(player.x + PLAYER_SIZE/2, player.y + PLAYER_SIZE/2);
     ctx.rotate(player.rotation);
     
-    // Градиент для куба
-    const gradient = ctx.createLinearGradient(-player.width/2, -player.height/2, player.width/2, player.height/2);
+    const gradient = ctx.createLinearGradient(-PLAYER_SIZE/2, -PLAYER_SIZE/2, PLAYER_SIZE/2, PLAYER_SIZE/2);
     gradient.addColorStop(0, player.color);
     gradient.addColorStop(1, '#ff8c00');
-    
     ctx.fillStyle = gradient;
-    ctx.fillRect(-player.width / 2, -player.height / 2, player.width, player.height);
+    ctx.fillRect(-PLAYER_SIZE/2, -PLAYER_SIZE/2, PLAYER_SIZE, PLAYER_SIZE);
     
     // Обводка
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(-player.width / 2, -player.height / 2, player.width, player.height);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-PLAYER_SIZE/2, -PLAYER_SIZE/2, PLAYER_SIZE, PLAYER_SIZE);
+    
+    // Глаз
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(5, -8, 10, 10);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(10, -5, 5, 5);
     
     ctx.restore();
 }
@@ -215,11 +348,17 @@ function drawPlayer() {
 function drawObstacles() {
     for (let obstacle of obstacles) {
         if (obstacle.type === 'spike') {
-            // Рисуем шип
-            ctx.fillStyle = '#ff4444';
+            const gradient = ctx.createLinearGradient(
+                obstacle.x, obstacle.y, 
+                obstacle.x, obstacle.y + obstacle.height
+            );
+            gradient.addColorStop(0, '#ff6b6b');
+            gradient.addColorStop(1, '#c0392b');
+            
+            ctx.fillStyle = gradient;
             ctx.beginPath();
             ctx.moveTo(obstacle.x, obstacle.y + obstacle.height);
-            ctx.lineTo(obstacle.x + obstacle.width / 2, obstacle.y);
+            ctx.lineTo(obstacle.x + obstacle.width/2, obstacle.y);
             ctx.lineTo(obstacle.x + obstacle.width, obstacle.y + obstacle.height);
             ctx.closePath();
             ctx.fill();
@@ -227,11 +366,13 @@ function drawObstacles() {
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.stroke();
-        } else {
-            // Рисуем блок
-            const gradient = ctx.createLinearGradient(obstacle.x, obstacle.y, obstacle.x + obstacle.width, obstacle.y + obstacle.height);
-            gradient.addColorStop(0, '#44ff44');
-            gradient.addColorStop(1, '#00aa00');
+        } else if (obstacle.type === 'block') {
+            const gradient = ctx.createLinearGradient(
+                obstacle.x, obstacle.y,
+                obstacle.x + obstacle.width, obstacle.y + obstacle.height
+            );
+            gradient.addColorStop(0, '#00b894');
+            gradient.addColorStop(1, '#00a085');
             
             ctx.fillStyle = gradient;
             ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
@@ -239,61 +380,69 @@ function drawObstacles() {
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        } else if (obstacle.type === 'triple') {
+            for (let i = 0; i < 3; i++) {
+                const gradient = ctx.createLinearGradient(
+                    obstacle.x + i * 30, obstacle.y,
+                    obstacle.x + i * 30, obstacle.y + obstacle.height
+                );
+                gradient.addColorStop(0, '#fdcb6e');
+                gradient.addColorStop(1, '#e17055');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(obstacle.x + i * 30, obstacle.y, 30, obstacle.height);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(obstacle.x + i * 30, obstacle.y, 30, obstacle.height);
+            }
         }
     }
 }
 
-// Отрисовка земли
-function drawGround() {
-    const groundGradient = ctx.createLinearGradient(0, CANVAS_HEIGHT - GROUND_HEIGHT, 0, CANVAS_HEIGHT);
-    groundGradient.addColorStop(0, '#667eea');
-    groundGradient.addColorStop(1, '#764ba2');
-    
-    ctx.fillStyle = groundGradient;
-    ctx.fillRect(0, CANVAS_HEIGHT - GROUND_HEIGHT, CANVAS_WIDTH, GROUND_HEIGHT);
-    
-    // Верхняя линия земли
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, CANVAS_HEIGHT - GROUND_HEIGHT);
-    ctx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_HEIGHT);
-    ctx.stroke();
-}
-
 // Отрисовка частиц
 function drawParticles() {
-    for (let particle of particles) {
-        ctx.globalAlpha = particle.life;
-        ctx.fillStyle = particle.color;
+    for (let p of particles) {
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
         ctx.beginPath();
-        ctx.arc(particle.x, particle.y, 3, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
     }
     ctx.globalAlpha = 1;
 }
 
-// Отрисовка фона
-function drawBackground() {
-    // Эффект параллакса можно добавить здесь
+// Обновление прогресс-бара
+function updateProgressBar(levelConfig) {
+    const progress = (gameState.levelProgress / levelConfig.length) * 100;
+    progressBar.style.width = `${Math.min(progress, 100)}%`;
 }
 
 // Основной игровой цикл
 function gameLoop() {
     if (!gameState.isRunning) return;
     
-    // Очистка экрана
+    const levelConfig = LEVELS[gameState.currentLevel];
+    
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     
-    // Обновление
-    updatePlayer();
-    updateObstacles();
+    updatePlayer(levelConfig);
+    updateObstacles(levelConfig);
     updateParticles();
-    checkCollisions();
+    updateProgressBar(levelConfig);
     
-    // Отрисовка
-    drawBackground();
-    drawGround();
+    if (checkCollisions()) {
+        gameOver();
+        return;
+    }
+    
+    // Проверка победы
+    if (gameState.levelProgress >= levelConfig.length && obstacles.length === 0) {
+        winLevel();
+        return;
+    }
+    
+    drawBackground(levelConfig);
+    drawGround(levelConfig);
     drawObstacles();
     drawPlayer();
     drawParticles();
@@ -307,44 +456,124 @@ function jump() {
     if (!gameState.isRunning) return;
     
     if (!player.isJumping) {
-        player.velocityY = JUMP_FORCE;
+        const levelConfig = LEVELS[gameState.currentLevel];
+        player.velocityY = levelConfig.jumpForce;
         player.isJumping = true;
-        createParticles(player.x + player.width / 2, player.y + player.height, '#fff', 5);
+        createParticles(player.x + PLAYER_SIZE/2, player.y + PLAYER_SIZE, '#fff', 8);
     }
 }
 
 // Конец игры
 function gameOver() {
     gameState.isRunning = false;
-    createParticles(player.x + player.width / 2, player.y + player.height / 2, player.color, 20);
+    createParticles(player.x + PLAYER_SIZE/2, player.y + PLAYER_SIZE/2, player.color, 25);
     
-    // Показываем экран проигрыша
     setTimeout(() => {
-        startScreen.classList.remove('hidden');
-        startScreen.querySelector('h1').textContent = 'Игра окончена!';
-        startScreen.querySelector('p').textContent = `Твой счет: ${gameState.score}`;
-        startBtn.textContent = 'Играть снова';
-    }, 500);
+        scoreValue.textContent = gameState.score;
+        attemptValue.textContent = gameState.attempts;
+        deathScreen.classList.remove('hidden');
+    }, 300);
+}
+
+// Победа в уровне
+function winLevel() {
+    gameState.isRunning = false;
+    
+    if (gameState.score > gameState.highScores[gameState.currentLevel]) {
+        gameState.highScores[gameState.currentLevel] = gameState.score;
+    }
+    
+    setTimeout(() => {
+        winScore.textContent = gameState.score;
+        winAttempts.textContent = gameState.attempts;
+        winScreen.classList.remove('hidden');
+    }, 300);
+}
+
+// Показать главное меню
+function showMainMenu() {
+    deathScreen.classList.add('hidden');
+    winScreen.classList.add('hidden');
+    levelSelectScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+    
+    // Очистка канваса
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    initBackgroundParticles();
+    drawBackground(LEVELS.easy);
+    drawGround(LEVELS.easy);
+}
+
+// Показать выбор уровня
+function showLevelSelect() {
+    startScreen.classList.add('hidden');
+    deathScreen.classList.add('hidden');
+    winScreen.classList.add('hidden');
+    levelSelectScreen.classList.remove('hidden');
+}
+
+// Выбор уровня
+function selectLevel(level, element) {
+    gameState.currentLevel = level;
+    
+    // Убираем выделение со всех кнопок
+    document.querySelectorAll('.level-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    
+    // Выделяем выбранную кнопку
+    element.classList.add('selected');
 }
 
 // Старт игры
 function startGame() {
-    initGame();
+    const levelConfig = LEVELS[gameState.currentLevel];
+    
     gameState.isRunning = true;
-    startScreen.classList.add('hidden');
+    gameState.score = 0;
+    gameState.frameCount = 0;
+    gameState.levelProgress = 0;
+    gameState.attempts = 1;
+    
+    scoreDisplay.textContent = '0';
+    progressBar.style.width = '0%';
+    
+    initPlayer();
+    obstacles = [];
+    particles = [];
+    initBackgroundParticles();
+    
+    levelSelectScreen.classList.add('hidden');
+    
+    gameLoop();
+}
+
+// Перезапуск уровня
+function restartLevel() {
+    gameState.attempts++;
+    deathScreen.classList.add('hidden');
+    
+    gameState.isRunning = true;
+    gameState.score = 0;
+    gameState.frameCount = 0;
+    gameState.levelProgress = 0;
+    
+    scoreDisplay.textContent = '0';
+    progressBar.style.width = '0%';
+    
+    initPlayer();
+    obstacles = [];
+    particles = [];
+    
     gameLoop();
 }
 
 // Обработчики событий
-startBtn.addEventListener('click', startGame);
-
 document.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp') {
         e.preventDefault();
         if (gameState.isRunning) {
             jump();
-        } else if (!startScreen.classList.contains('hidden')) {
-            startGame();
         }
     }
 });
@@ -362,10 +591,11 @@ canvas.addEventListener('touchstart', (e) => {
     }
 });
 
-// Начальная отрисовка
-function initialDraw() {
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    drawGround();
+// Инициализация при загрузке
+function init() {
+    initBackgroundParticles();
+    drawBackground(LEVELS.easy);
+    drawGround(LEVELS.easy);
 }
 
-initialDraw();
+init();
