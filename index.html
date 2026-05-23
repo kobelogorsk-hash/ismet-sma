@@ -1,35 +1,37 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Geometry Motion</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Geometry Motion</title>
 
-  <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com"></script>
 
-  <style>
-    body {
-      margin: 0;
-      overflow-x: hidden;
-      overflow-y: auto;
-      background: #020617;
-      font-family: Inter, sans-serif;
-      color: white;
-    }
+<style>
 
-    canvas {
-      display: block;
-    }
+body{
+  margin:0;
+  overflow-x:hidden;
+  overflow-y:auto;
+  background:#020617;
+  font-family:Inter,sans-serif;
+  color:white;
+}
 
-    ::-webkit-scrollbar {
-      width: 10px;
-    }
+canvas{
+  display:block;
+}
 
-    ::-webkit-scrollbar-thumb {
-      background: #334155;
-      border-radius: 20px;
-    }
-  </style>
+::-webkit-scrollbar{
+  width:10px;
+}
+
+::-webkit-scrollbar-thumb{
+  background:#334155;
+  border-radius:20px;
+}
+
+</style>
 </head>
 <body>
 
@@ -40,6 +42,7 @@
     <div class="flex flex-col xl:flex-row justify-between gap-10 mb-16">
 
       <div>
+
         <div class="uppercase tracking-[0.5em] text-slate-500 text-sm mb-4">
           ARCADE PLATFORMER
         </div>
@@ -51,28 +54,10 @@
 
         <p class="text-slate-400 text-2xl max-w-3xl leading-relaxed">
           100 уровней хардкора.
-          Полноэкранный platformer в стиле Geometry Dash
-          с нормальной физикой, прогрессом и темным UI.
+          Geometry Dash-подобная игра
+          с нормальной физикой и fullscreen gameplay.
         </p>
 
-        <div class="flex flex-wrap gap-5 mt-10">
-
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl px-6 py-5">
-            <div class="text-slate-500 text-sm">Уровней</div>
-            <div class="text-5xl font-black">100</div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl px-6 py-5">
-            <div class="text-slate-500 text-sm">Сложность</div>
-            <div class="text-5xl font-black">💀</div>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl px-6 py-5">
-            <div class="text-slate-500 text-sm">Fullscreen</div>
-            <div class="text-5xl font-black">⚡</div>
-          </div>
-
-        </div>
       </div>
 
       <div class="bg-slate-900 border border-slate-800 rounded-3xl p-8 min-w-[320px] h-fit">
@@ -90,7 +75,7 @@
         </div>
 
         <div class="border-t border-slate-800 pt-5 text-slate-500">
-          Geometry Motion v2.0
+          Geometry Motion v3.0
         </div>
 
       </div>
@@ -110,11 +95,65 @@
 
 <script>
 
+const audioCtx =
+  new (window.AudioContext || window.webkitAudioContext)()
+
+function beep(freq,duration,type='square',volume=0.03){
+
+  const osc = audioCtx.createOscillator()
+  const gain = audioCtx.createGain()
+
+  osc.type = type
+  osc.frequency.value = freq
+
+  gain.gain.value = volume
+
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+
+  osc.start()
+
+  gain.gain.exponentialRampToValueAtTime(
+    0.0001,
+    audioCtx.currentTime + duration
+  )
+
+  osc.stop(audioCtx.currentTime + duration)
+}
+
+function jumpSound(){
+
+  beep(950,0.05,'square',0.04)
+}
+
+function deathSound(){
+
+  beep(140,0.3,'sawtooth',0.08)
+
+  setTimeout(()=>{
+    beep(80,0.35,'sawtooth',0.06)
+  },80)
+}
+
+function winSound(){
+
+  beep(600,0.08,'square',0.05)
+
+  setTimeout(()=>{
+    beep(850,0.08,'square',0.05)
+  },100)
+
+  setTimeout(()=>{
+    beep(1100,0.12,'square',0.05)
+  },200)
+}
+
 const LEVELS = Array.from({ length: 100 }, (_, i) => {
 
   const level = i + 1
 
   return {
+
     id: level,
 
     name: `Level ${level}`,
@@ -157,18 +196,6 @@ const menu = document.getElementById('menu')
 const levelsContainer = document.getElementById('levels')
 const canvas = document.getElementById('game')
 const ctx = canvas.getContext('2d')
-
-const jumpSound = new Audio(
-  'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3'
-)
-
-const deathSound = new Audio(
-  'https://assets.mixkit.co/active_storage/sfx/2220/2220-preview.mp3'
-)
-
-const winSound = new Audio(
-  'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3'
-)
 
 LEVELS.forEach(level => {
 
@@ -222,7 +249,8 @@ LEVELS.forEach(level => {
   levelsContainer.appendChild(card)
 })
 
-function resize() {
+function resize(){
+
   canvas.width = innerWidth
   canvas.height = innerHeight
 }
@@ -231,7 +259,7 @@ resize()
 
 addEventListener('resize', resize)
 
-function startLevel(level) {
+function startLevel(level){
 
   menu.style.display = 'none'
 
@@ -256,23 +284,22 @@ function startLevel(level) {
     rotation: 0,
   }
 
-  function jump() {
+  function jump(){
 
-    if (player.y >= ground - 4) {
+    if(player.y >= ground - 4){
 
       player.velY = jumpForce
 
-      jumpSound.currentTime = 0
-      jumpSound.play()
+      jumpSound()
     }
   }
 
   const keyHandler = e => {
 
-    if (
+    if(
       e.code === 'Space' ||
       e.code === 'ArrowUp'
-    ) {
+    ){
       jump()
     }
   }
@@ -282,70 +309,64 @@ function startLevel(level) {
   addEventListener('keydown', keyHandler)
   addEventListener('mousedown', clickHandler)
 
-  function explode(x, y) {
+  function explode(x,y){
 
-    for (let i = 0; i < 40; i++) {
+    for(let i=0;i<40;i++){
 
       particles.push({
         x,
         y,
-        vx: (Math.random() - 0.5) * 12,
-        vy: (Math.random() - 0.5) * 12,
-        size: Math.random() * 6 + 2,
-        life: 1,
+        vx:(Math.random()-0.5)*12,
+        vy:(Math.random()-0.5)*12,
+        size:Math.random()*6+2,
+        life:1,
       })
     }
   }
 
-  function gameOver() {
+  function gameOver(){
 
     running = false
 
-    deathSound.currentTime = 0
-    deathSound.play()
+    deathSound()
 
-    ctx.fillStyle = 'rgba(0,0,0,0.7)'
+    ctx.fillStyle='rgba(0,0,0,0.7)'
     ctx.fillRect(0,0,canvas.width,canvas.height)
 
-    ctx.fillStyle = '#fff'
-    ctx.font = 'bold 72px Arial'
+    ctx.fillStyle='#fff'
+    ctx.font='bold 72px Arial'
 
     ctx.fillText(
       'GAME OVER',
-      canvas.width / 2 - 240,
-      canvas.height / 2
+      canvas.width/2-240,
+      canvas.height/2
     )
 
-    setTimeout(() => {
+    setTimeout(()=>{
       location.reload()
-    }, 2200)
+    },2200)
   }
 
-  function loop() {
+  function loop(){
 
-    if (!running) return
+    if(!running) return
 
     requestAnimationFrame(loop)
 
     ctx.fillStyle = level.color
     ctx.fillRect(0,0,canvas.width,canvas.height)
 
-    ctx.fillStyle = '#111827'
-    ctx.fillRect(0, ground + 46, canvas.width, 300)
+    ctx.fillStyle='#111827'
+    ctx.fillRect(0,ground+46,canvas.width,300)
 
-    for (let i = 0; i < canvas.width; i += 60) {
+    for(let i=0;i<canvas.width;i+=60){
 
       ctx.fillStyle =
         i % 120 === 0
           ? '#1e293b'
           : '#0f172a'
 
-      ctx.fillRect(
-        i,
-        ground + 46,
-        52,
-        52
-      )
+      ctx.fillRect(i,ground+46,52,52)
     }
 
     worldX += level.speed
@@ -360,7 +381,8 @@ function startLevel(level) {
     player.velY += gravity
     player.y += player.velY
 
-    if (player.y > ground) {
+    if(player.y > ground){
+
       player.y = ground
       player.velY = 0
     }
@@ -372,24 +394,24 @@ function startLevel(level) {
 
       ctx.beginPath()
 
-      ctx.moveTo(x, ground + 46)
-      ctx.lineTo(x + obs.w / 2, y)
-      ctx.lineTo(x + obs.w, ground + 46)
+      ctx.moveTo(x,ground+46)
+      ctx.lineTo(x+obs.w/2,y)
+      ctx.lineTo(x+obs.w,ground+46)
 
       ctx.closePath()
 
-      ctx.fillStyle = '#e2e8f0'
+      ctx.fillStyle='#e2e8f0'
       ctx.fill()
 
-      ctx.strokeStyle = '#94a3b8'
-      ctx.lineWidth = 3
+      ctx.strokeStyle='#94a3b8'
+      ctx.lineWidth=3
       ctx.stroke()
 
-      if (
+      if(
         player.x + player.size - 10 > x &&
         player.x + 10 < x + obs.w &&
         player.y + player.size - 10 > y
-      ) {
+      ){
 
         explode(
           player.x + player.size / 2,
@@ -414,29 +436,29 @@ function startLevel(level) {
     ctx.shadowBlur = 20
     ctx.shadowColor = '#ffffff'
 
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle='#ffffff'
 
     ctx.fillRect(
-      -player.size / 2,
-      -player.size / 2,
+      -player.size/2,
+      -player.size/2,
       player.size,
       player.size
     )
 
     ctx.shadowBlur = 0
 
-    ctx.fillStyle = '#0f172a'
+    ctx.fillStyle='#0f172a'
 
     ctx.fillRect(
-      -player.size / 2 + 6,
-      -player.size / 2 + 6,
-      player.size - 12,
-      player.size - 12
+      -player.size/2+6,
+      -player.size/2+6,
+      player.size-12,
+      player.size-12
     )
 
     ctx.restore()
 
-    particles.forEach((p, index) => {
+    particles.forEach((p,index)=>{
 
       p.x += p.vx
       p.y += p.vy
@@ -452,14 +474,14 @@ function startLevel(level) {
         p.size
       )
 
-      if (p.life <= 0) {
-        particles.splice(index, 1)
+      if(p.life <= 0){
+        particles.splice(index,1)
       }
     })
 
-    ctx.fillStyle = '#fff'
+    ctx.fillStyle='#fff'
 
-    ctx.font = 'bold 28px Arial'
+    ctx.font='bold 28px Arial'
 
     ctx.fillText(
       level.name,
@@ -467,7 +489,7 @@ function startLevel(level) {
       50
     )
 
-    ctx.font = '22px Arial'
+    ctx.font='22px Arial'
 
     ctx.fillText(
       progress + '%',
@@ -475,32 +497,31 @@ function startLevel(level) {
       90
     )
 
-    ctx.fillStyle = '#1e293b'
+    ctx.fillStyle='#1e293b'
 
     ctx.fillRect(
-      canvas.width / 2 - 250,
+      canvas.width/2-250,
       30,
       500,
       18
     )
 
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle='#ffffff'
 
     ctx.fillRect(
-      canvas.width / 2 - 250,
+      canvas.width/2-250,
       30,
       progress * 5,
       18
     )
 
-    if (progress >= 100) {
+    if(progress >= 100){
 
       running = false
 
-      winSound.currentTime = 0
-      winSound.play()
+      winSound()
 
-      ctx.fillStyle = 'rgba(0,0,0,0.7)'
+      ctx.fillStyle='rgba(0,0,0,0.7)'
       ctx.fillRect(
         0,
         0,
@@ -508,18 +529,18 @@ function startLevel(level) {
         canvas.height
       )
 
-      ctx.fillStyle = '#fff'
-      ctx.font = 'bold 72px Arial'
+      ctx.fillStyle='#fff'
+      ctx.font='bold 72px Arial'
 
       ctx.fillText(
         'LEVEL COMPLETE',
-        canvas.width / 2 - 340,
-        canvas.height / 2
+        canvas.width/2-340,
+        canvas.height/2
       )
 
-      setTimeout(() => {
+      setTimeout(()=>{
         location.reload()
-      }, 3000)
+      },3000)
     }
   }
 
@@ -527,6 +548,5 @@ function startLevel(level) {
 }
 
 </script>
-
 </body>
 </html>
